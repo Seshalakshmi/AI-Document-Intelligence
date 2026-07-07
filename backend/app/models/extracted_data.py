@@ -9,8 +9,8 @@ class ExtractedData(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     document_id: Mapped[int] = mapped_column(ForeignKey("documents.id"), index=True)
 
-    field_name: Mapped[str] = mapped_column(String(100))
-    field_value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # field_name: Mapped[str] = mapped_column(String(100))
+    # field_value: Mapped[str | None] = mapped_column(Text, nullable=True)
     
     confidence_score: Mapped[float | None] = mapped_column(Float, nullable=True)
 
