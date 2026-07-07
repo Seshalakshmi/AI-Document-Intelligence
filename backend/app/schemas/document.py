@@ -12,8 +12,10 @@ class DocumentResponse(BaseModel):
     file_type: str
     file_size: int | None
     status: str
-    summary: str | None
-    document_type: str | None
+    raw_text: str | None
+    description: str | None
+    # error_type: str | None
+    # document_type: str | None
     created_at: datetime
 
     class Config:
