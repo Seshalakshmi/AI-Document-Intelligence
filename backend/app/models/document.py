@@ -31,11 +31,12 @@ class Dcoument(Base):
     text_hash: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
 
     status: Mapped[str] = mapped_column(String(50), default=DocumentStatus.uploaded.value)
-    doument_type: Mapped[str] = mapped_column(String(100))
+    # This is for future
+    # doument_type: Mapped[str] = mapped_column(String(100))
 
     raw_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
-    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     uploaded_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
 
