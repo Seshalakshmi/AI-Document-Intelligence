@@ -6,7 +6,8 @@ import uvicorn
 
 app = FastAPI(
     title=settings.app_name,
-    version="0.1.0"
+    version="0.1.0",
+    debug=True,
 )
 
 app.add_middleware(
@@ -28,4 +29,6 @@ def root():
     }
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=5002, reload=2, debug=True)
+    uvicorn.run("app.main:app", host="127.0.0.1", port=5002, reload=True)
+
+# run python -m app.main
