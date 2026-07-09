@@ -1,7 +1,7 @@
 #create users class
 # id, email, fullname, is_active -> True, false, is_admin -> true, false
 # created_at, 
-from app.db.database import Base
+from app.db.base import Base
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, DateTime, Boolean
 from datetime import datetime, timezone
