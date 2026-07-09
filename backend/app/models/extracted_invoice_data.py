@@ -1,10 +1,11 @@
-from app.db.database import Base
+from app.db.base import Base
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, ForeignKey, Text, Float, DateTime, Integer, Date, Numeric
-from datetime import datetime, timezone, date, Decimal
+from datetime import datetime, timezone, date
+from decimal import Decimal
 
 class ExtractedInvoiceData(Base):
-    tablename = "extracted_invoice_data"
+    __tablename__ = "extracted_invoice_data"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 
