@@ -32,7 +32,6 @@ def upload_document(document: dict = Body(...), db: Session = Depends(get_db)):
         new_document = Document(
             original_filename=document["original_filename"],
             stored_filename=document["stored_filename"],
-            password_hash=document["password_hash"],
             file_path=document["file_path"],
             file_type=document["file_type"],
             file_size=document["file_size"],
