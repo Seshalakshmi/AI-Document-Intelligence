@@ -1,5 +1,5 @@
 from enum import Enum
-from app.db.database import Base
+from app.db.base import Base
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import Integer, ForeignKey, Text, DateTime, String
 from datetime import datetime, timezone
@@ -28,7 +28,7 @@ class ChunkType(str, Enum):
 
 
 class DocumentChunk(Base):
-    tablename = "document_chunks"
+    __tablename__ = "document_chunks"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 
