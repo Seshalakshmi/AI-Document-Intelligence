@@ -1,8 +1,3 @@
-# document data model
-# class Document
-# class Document_status
-
-# search on online implement class status with Enum
 from enum import Enum
 from app.db.base import Base
 from sqlalchemy.orm import Mapped, mapped_column
@@ -17,7 +12,7 @@ class DocumentStatus(str, Enum):
     failed: str = "failed"
 
 
-class Dcoument(Base):
+class Document(Base):
     __tablename__ = "documents"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
