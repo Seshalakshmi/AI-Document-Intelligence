@@ -22,3 +22,9 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# connect with database
+# docker exec -it postgres-db psql -U sesha -d mydatabase 
+
+# list of tables
+# mydatabase-# \dt

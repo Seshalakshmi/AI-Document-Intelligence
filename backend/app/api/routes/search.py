@@ -28,7 +28,7 @@ def search_similar_document_id(document_id: int):
         "message": "search similar documents by document_id"
     }
 
-@router.get("/document_id")
+@router.get("/{document_id}")
 def search_duplicated_document(document_id: int):
     return {
         "status": "ok",
