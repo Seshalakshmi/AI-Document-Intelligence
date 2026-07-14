@@ -1,6 +1,3 @@
-# get all documents
-# document by id
-# upload_document (create)
 from fastapi import APIRouter, Depends, Body, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
@@ -12,7 +9,6 @@ from app.services.document_service import create_document_chunks, create_invoice
 from app.models.extracted_invoice_data import ExtractedInvoiceData
 from app.schemas.extracted_invoice_data import ExtractedInvoiceDataResponse
 from app.services.text_extraction_service import extract_text
-from app.services.chunking_service import chunk_text
 from app.models.document_chunk import DocumentChunk
 from pathlib import Path
 import shutil
@@ -23,6 +19,7 @@ router = APIRouter(prefix="/documents", tags=["DOCUMENT"])
 
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
+
 def calculate_file_hash(file_path: Path) -> str:
     sha256_hash = hashlib.sha256()
 
