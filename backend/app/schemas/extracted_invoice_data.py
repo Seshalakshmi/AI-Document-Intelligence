@@ -3,7 +3,7 @@ from decimal import Decimal
 from pydantic import BaseModel
 
 
-class ExtractedDataResponce(BaseModel):
+class ExtractedInvoiceDataResponse(BaseModel):
     id: int
     document_id: int
 
@@ -25,3 +25,6 @@ class ExtractedDataResponce(BaseModel):
 
     created_at: datetime
     updated_at: datetime
+
+    class Config:
+        from_attributes = True
