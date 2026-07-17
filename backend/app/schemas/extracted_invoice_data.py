@@ -23,6 +23,9 @@ class ExtractedInvoiceDataResponse(BaseModel):
 
     is_reviewed: bool
 
+    reviewed_by_id: int | None
+    reviewed_at: datetime | None
+
     created_at: datetime
     updated_at: datetime
 
