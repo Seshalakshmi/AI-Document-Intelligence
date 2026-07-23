@@ -2,14 +2,21 @@ from fastapi import APIRouter, Depends, Body, File, Form, HTTPException, UploadF
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from app.db.database import get_db
+
 from app.models.document import Document
+from app.models.user import Users
+from app.models.extracted_invoice_data import ExtractedInvoiceData
+from app.models.document_chunk import DocumentChunk
+
 from app.schemas.document import DocumentResponse
 from app.schemas.document_chunk import DocumentChunkResponse
-from app.services.document_service import create_document_chunks, create_invoice_extraction
-from app.models.extracted_invoice_data import ExtractedInvoiceData
 from app.schemas.extracted_invoice_data import ExtractedInvoiceDataResponse
+
+from app.services.document_service import create_document_chunks, create_invoice_extraction
+from app.services.chunking_service import create_chunks_for_document
 from app.services.text_extraction_service import extract_text
-from app.models.document_chunk import DocumentChunk
+
+from datetime import datetime, timezone
 from pathlib import Path
 import shutil
 import hashlib
@@ -155,6 +162,16 @@ def get_document_invoice_data(document_id: int, db: Session = Depends(get_db)):
     return invoice_data
 
 
+@router.post("/{document_id}/chunks/rebuild", response_model=list[DocumentChunkResponse])
+def rebuild_document_chunks(document_id: int, db: Session = Depends(get_db)):
+    try:
+        chunks = create_chunks_for_document(db, document_id)
+        return chunks
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+
 @router.get("/{document_id}")
 def get_document_by_id(document_id:int, db: Session = Depends(get_db)):
     document = db.query(Document).filter(Document.id == document_id).first()
@@ -165,34 +182,40 @@ def get_document_by_id(document_id:int, db: Session = Depends(get_db)):
     return document
 
 
-# @router.post("/")
-# def upload_document(document: dict = Body(...), db: Session = Depends(get_db)):
-#     try:
-#         existing_stored_filename = db.query(Document).filter(Document.stored_filename == document["stored_filename"]).first()
-        
-#         if existing_stored_filename:
-#                 raise HTTPException(status_code=400,detail="This file name is already exists.")
-        
-        
-#         new_document = Document(
-#             original_filename=document["original_filename"],
-#             stored_filename=document["stored_filename"],
-#             file_path=document["file_path"],
-#             file_type=document["file_type"],
-#             file_size=document["file_size"],
-#             status=document["status"],
-#             raw_text=document["raw_text"],
-#             description=document["description"]
-#         )
+@router.put("/{document_id}/invoice-data/review/{user_id}",  response_model=ExtractedInvoiceDataResponse)
+def review_invoice_data(
+    user_id: int,
+    document_id: int,
+    update_data: dict = Body(...),
+    db: Session = Depends(get_db)
+):
+    invoice_data = db.query(ExtractedInvoiceData).filter(
+        ExtractedInvoiceData.document_id == document_id
+    ).first()
 
-#         db.add(new_document)
-#         db.commit()
-#         db.refresh(new_document)
+    if not invoice_data:
+        raise HTTPException(status_code=404, detail="Invoice data not found.")
 
-#         return {
-#             "message": "User successfully created",
-#             "user": new_document
-#         }
-#     except SQLAlchemyError as e:
-#         db.rollback()
-#         raise HTTPException(status_code=500, detail=str(e))
+    invoice_data.supplier_name = update_data.get("supplier_name", invoice_data.supplier_name)
+    invoice_data.invoice_number = update_data.get("invoice_number", invoice_data.invoice_number)
+    invoice_data.currency = update_data.get("currency", invoice_data.currency)
+    invoice_data.payment_terms = update_data.get("payment_terms", invoice_data.payment_terms)
+    invoice_data.invoice_date = update_data.get("invoice_date", invoice_data.invoice_date)
+    invoice_data.subtotal = update_data.get("subtotal", invoice_data.subtotal)
+    invoice_data.tax_amount = update_data.get("tax_amount", invoice_data.tax_amount)
+    invoice_data.total_amount = update_data.get("total_amount", invoice_data.total_amount)
+    
+    invoice_data.is_reviewed = True
+
+    reviewer = db.query(Users).filter(Users.id == user_id).first()
+
+    if not reviewer:
+        raise HTTPException(status_code=404, detail="Reviewer user not found.")
+
+    invoice_data.reviewed_by_id = user_id
+    invoice_data.reviewed_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(invoice_data)
+
+    return invoice_data
