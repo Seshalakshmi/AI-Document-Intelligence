@@ -84,6 +84,5 @@ def extract_invoice_data(raw_text: str) -> dict:
         "total_amount": to_decimal(parsed.total_amount),
         "payment_terms": parsed.payment_terms,
         "confidence_score": parsed.confidence_score,
-        "raw_extraction_json": parsed.model_dump_json(),
-        "is_reviewed": True
+        "raw_extraction_json": parsed.model_dump_json()
     }
