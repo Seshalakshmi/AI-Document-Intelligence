@@ -2,7 +2,7 @@ from functools import lru_cache
 
 from sentence_transformers import SentenceTransformer
 
-from app.core.config import embedding_model_name
+from app.core.config import settings
 
 
 @lru_cache
@@ -13,7 +13,7 @@ def get_embedding_model() -> SentenceTransformer:
     Without caching, the model would reload every time we call the function,
     which would be very slow.
     """
-    return SentenceTransformer(embedding_model_name)
+    return SentenceTransformer(settings.embedding_model_name)
 
 
 def create_embedding(text: str) -> list[float]:
