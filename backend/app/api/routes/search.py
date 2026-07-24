@@ -1,13 +1,8 @@
-# / search ({message})
-# / semantic_search ({message})
-# / search_similar_document_id ({message_id})
-# / search_duplicated_document ({message_id})
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.models.document_chunk import DocumentChunk
 from app.schemas.search import SearchResultResponse
-
+from app.services.search_service import keyword_search, semantic_search, find_similar_docuemnts, define_possible_duplicates
 
 router = APIRouter(prefix="/search", tags=["SEARCH"])
 
@@ -17,35 +12,22 @@ def search_status():
 
 
 @router.get("/keyword", response_model=list[SearchResultResponse])
-def keyword_search(query: str, db: Session = Depends(get_db)):
-    chunks = db.query(DocumentChunk).filter(
-    DocumentChunk.content.ilike(f"%{query}%")
-    ).order_by(DocumentChunk.document_id, DocumentChunk.chunk_index).all()
-
-    return [
-        {
-            "document_id": chunk.document_id,
-            "chunk_id": chunk.id,
-            "chunk_index": chunk.chunk_index,
-            "content": chunk.content,
-        }
-        for chunk in chunks
-    ]
+def keyword_search_route(query: str, limit: int=5, db: Session = Depends(get_db)):
+    return keyword_search(db, query, limit=limit)
 
 
 @router.get("/semantic")
-def semantic_search(query: str):
-    return {"query": query}
+def semantic_search_route(query: str, limit: int=5, db: Session = Depends(get_db)):
+    return semantic_search(db, query, limit=limit)
 
 
 @router.get("/documents/{document_id}/similar")
-def search_similar_documents(document_id: int):
-    return {"document_id": document_id}
+def search_similar_documents(document_id: int, limit: int = 5, db: Session = Depends(get_db)):
+    return find_similar_docuemnts(db, document_id, limit=limit)
 
 
-@router.get("/{document_id}")
-def search_duplicated_document(document_id: int):
-    return {
-        "status": "ok",
-        "message": "search duplicated document"
-    }
+@router.get("/documents/{document_id}/duplicates")
+def search_duplicated_document(document_id: int, similarity_threshold: float = 0.90, db:Session = Depends(get_db)):
+    return define_possible_duplicates(
+        db, document_id, similarity_threshold=similarity_threshold
+    )
