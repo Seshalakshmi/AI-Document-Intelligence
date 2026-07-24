@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from app.core.config import embedding_model_name, embedding_dimension
+from app.core.config import settings
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.document_embedding import DocumentEmbedding
@@ -30,8 +30,8 @@ def vectorize_document(db: Session, document_id: int) -> dict:
             document_id=document_id,
             chunk_id=chunk.id,
             embedding=embedding,
-            embedding_model=embedding_model_name,
-            embedding_dimension=embedding_dimension,
+            embedding_model=settings.embedding_model_name,
+            embedding_dimension=settings.embedding_dimension,
         )
 
         db.add(document_embedding)
@@ -43,7 +43,7 @@ def vectorize_document(db: Session, document_id: int) -> dict:
         "document_id": document_id,
         "chunks_vectorize": len(chunks),
         "embeddings_created": len(embeddings),
-        "embedding_model": embedding_model_name,
-        "embedding_dimension": embedding_dimension
+        "embedding_model": settings.embedding_model_name,
+        "embedding_dimension": settings.embedding_dimension
     }
 

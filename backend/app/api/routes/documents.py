@@ -15,6 +15,7 @@ from app.schemas.extracted_invoice_data import ExtractedInvoiceDataResponse
 from app.services.document_service import create_document_chunks, create_invoice_extraction
 from app.services.chunking_service import create_chunks_for_document
 from app.services.text_extraction_service import extract_text
+from app.services.vectorization_service import vectorize_document
 
 from datetime import datetime, timezone
 from pathlib import Path
@@ -45,6 +46,15 @@ def get_documents(db: Session = Depends(get_db)):
         return []
     
     return documents
+
+@router.get("/{document_id}")
+def get_document_by_id(document_id:int, db: Session = Depends(get_db)):
+    document = db.query(Document).filter(Document.id == document_id).first()
+
+    if not document:
+        raise HTTPException(status_code=404,detail="Document not found.")
+    
+    return document
 
 
 @router.post("/upload/{user_id}")
@@ -170,16 +180,14 @@ def rebuild_document_chunks(document_id: int, db: Session = Depends(get_db)):
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
 
-@router.get("/{document_id}")
-def get_document_by_id(document_id:int, db: Session = Depends(get_db)):
-    document = db.query(Document).filter(Document.id == document_id).first()
 
-    if not document:
-        raise HTTPException(status_code=404,detail="Document not found.")
-    
-    return document
+@router.post("/{document_id}/vectorize")
+def vectorize_document_endpoint(document_id: int, db: Session = Depends(get_db)):
+    try:
+        return vectorize_document(db, document_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.put("/{document_id}/invoice-data/review/{user_id}",  response_model=ExtractedInvoiceDataResponse)
