@@ -231,11 +231,11 @@ def find_similar_docuemnts(db: Session, document_id: int, limit: int=5) -> list[
     return list(best_result_by_docuemnt_id.values())[:limit]
 
 
-def define_possible_duplicates(db: Session, document_id: int, similarity_threshold: float=0.90)->list[dict]:
+def detect_possible_duplicates(db: Session, document_id: int, similarity_threshold: float=0.90)->list[dict]:
     source_document = db.query(Document).filter(Document.id == document_id).first()
 
     if source_document is None:
-        return []
+        raise ValueError("Documents not found")
 
     duplicates: dict[int, dict] = {}
 
@@ -258,8 +258,8 @@ def define_possible_duplicates(db: Session, document_id: int, similarity_thresho
             duplicates[document.id] = {
                 "document_id": document.id,
                 "original_filename": document.original_filename,
-                "similarity": 1.0,
-                "match_reason": "exact_hash"
+                "similarity": None,
+                "match_reason": "extracted_text_hash"
             }
 
     query_embedding = get_average_docuemnt_embedding(db, document_id)
@@ -295,7 +295,7 @@ def define_possible_duplicates(db: Session, document_id: int, similarity_thresho
         } 
 
     if not best_similarity_per_document:
-        return "There is no duplicate documents available"
+        return []
     
     return sorted(duplicates.values(), key=lambda d: d["similarity"], reverse=True)
     
