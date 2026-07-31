@@ -69,9 +69,11 @@ def semantic_search(db: Session, query: str, limit: int=5) -> list[dict]:
             {
                 "document_id": document.id,
                 "chunk_id": chunk.id,
+                "chunk_index": chunk.chunk_index,
                 "original_filename": document.original_filename,
                 "content": chunk.content,
-                "similarity": round(similarity, 4)
+                "similarity": round(similarity, 4),
+                "match_type": "semantic",
             }
         )
 
@@ -182,70 +184,125 @@ def search_invoices(
     return results
 
 
-def get_average_docuemnt_embedding(db: Session, document_id: int) -> list[float]:
-    '''
-    create one average vector for a full docuemnt. I keep this function for simple mvp
-    '''
+def get_average_document_embedding(
+    db: Session,
+    document_id: int,
+) -> list[float]:
+    """
+    Build one simple document-level vector by averaging its chunk vectors.
+    """
     embeddings = (
         db.query(DocumentEmbedding)
         .filter(DocumentEmbedding.document_id == document_id)
         .all()
-        )
-    if not embeddings:
-        raise ValueError("Document has no embeddings. Vectorize it first") 
+    )
 
-    vectors = np.array([item.embedding for item in embeddings], dtype=float)
+    if not embeddings:
+        raise ValueError(
+            "Document has no embeddings. Vectorize the document first."
+        )
+
+    vectors = np.array(
+        [embedding.embedding for embedding in embeddings],
+        dtype=float,
+    )
 
     average_vector = vectors.mean(axis=0)
 
     return average_vector.tolist()
 
 
-def find_similar_docuemnts(db: Session, document_id: int, limit: int=5) -> list[dict]:
-    query_embedding = get_average_docuemnt_embedding(db, document_id)
-    distance = DocumentEmbedding.embedding.cosine_distance(query_embedding).label("distance")
+def find_similar_documents(
+    db: Session,
+    document_id: int,
+    limit: int = 5,
+) -> list[dict]:
+    """
+    Find other documents whose chunks are close to the selected document.
+    """
+    source_document = db.get(Document, document_id)
+
+    if source_document is None:
+        raise ValueError("Document not found.")
+
+    source_embedding = get_average_document_embedding(
+        db=db,
+        document_id=document_id,
+    )
+
+    distance = DocumentEmbedding.embedding.cosine_distance(
+        source_embedding
+    ).label("distance")
 
     rows = (
         db.query(Document, distance)
-        .join(DocumentEmbedding, DocumentEmbedding.document_id==Document.id)
+        .join(
+            DocumentEmbedding,
+            DocumentEmbedding.document_id == Document.id,
+        )
         .filter(Document.id != document_id)
         .order_by(distance)
         .limit(limit * 5)
         .all()
     )
 
-    best_result_by_docuemnt_id = {}
+    best_result_by_document_id: dict[int, dict] = {}
 
     for document, distance_value in rows:
         similarity = 1 - float(distance_value)
-            
-        existing = best_result_by_docuemnt_id.get(document.id)
 
-        if existing is None or similarity > existing["similarity"]:
-            best_result_by_docuemnt_id[document.id] = {
-                "document_id" : document.id,
+        existing_result = best_result_by_document_id.get(document.id)
+
+        if (
+            existing_result is None
+            or similarity > existing_result["similarity"]
+        ):
+            best_result_by_document_id[document.id] = {
+                "document_id": document.id,
                 "original_filename": document.original_filename,
-                "similarity": round(similarity, 4)
+                "similarity": round(similarity, 4),
             }
 
-    return list(best_result_by_docuemnt_id.values())[:limit]
+    results = list(best_result_by_document_id.values())
+
+    results.sort(
+        key=lambda result: result["similarity"],
+        reverse=True,
+    )
+
+    return results[:limit]
 
 
-def detect_possible_duplicates(db: Session, document_id: int, similarity_threshold: float=0.90)->list[dict]:
-    source_document = db.query(Document).filter(Document.id == document_id).first()
+def detect_possible_duplicates(
+    db: Session,
+    document_id: int,
+    similarity_threshold: float = 0.90,
+) -> list[dict]:
+    """
+    Check for possible duplicate documents using:
+
+    1. File hash
+    2. Extracted text hash
+    3. Embedding similarity
+    """
+    source_document = db.get(Document, document_id)
 
     if source_document is None:
-        raise ValueError("Documents not found")
+        raise ValueError("Document not found.")
 
     duplicates: dict[int, dict] = {}
 
     hash_filters = []
 
     if source_document.file_hash:
-        hash_filters.append(Document.file_hash == source_document.file_hash)
+        hash_filters.append(
+            Document.file_hash == source_document.file_hash
+        )
 
     if source_document.text_hash:
-        hash_filters.append(Document.text_hash == source_document.text_hash)
+        hash_filters.append(
+            Document.text_hash == source_document.text_hash
+        )
 
     if hash_filters:
         exact_matches = (
@@ -254,48 +311,67 @@ def detect_possible_duplicates(db: Session, document_id: int, similarity_thresho
             .filter(or_(*hash_filters))
             .all()
         )
+
         for document in exact_matches:
+            reasons = []
+
+            if (
+                source_document.file_hash
+                and document.file_hash == source_document.file_hash
+            ):
+                reasons.append("file_hash")
+
+            if (
+                source_document.text_hash
+                and document.text_hash == source_document.text_hash
+            ):
+                reasons.append("text_hash")
+
             duplicates[document.id] = {
                 "document_id": document.id,
                 "original_filename": document.original_filename,
                 "similarity": None,
-                "match_reason": "extracted_text_hash"
+                "match_reason": "+".join(reasons),
             }
 
-    query_embedding = get_average_docuemnt_embedding(db, document_id)
-    distance = DocumentEmbedding.embedding.cosine_distance(query_embedding).label("distance")
-
-    rows = (
-            db.query(Document, distance)
-            .join(DocumentEmbedding, DocumentEmbedding.document_id==Document.id)
-            .filter(Document.id != document_id)
-            .order_by(distance)
-            .all()
+    # Semantic duplicate checking requires embeddings.
+    # Hash duplicate results can still be returned without embeddings.
+    try:
+        similar_documents = find_similar_documents(
+            db=db,
+            document_id=document_id,
+            limit=20,
         )
+    except ValueError:
+        similar_documents = []
 
-    best_similarity_per_document: dict[int, float] = {}
-    for document, distance_value in rows:
-        similarity = 1 - float(distance_value)
-        if similarity < similarity_threshold:
-            continue
-        if document.id not in best_similarity_per_document or similarity > best_similarity_per_document[document.id]:
-            best_similarity_per_document[document.id] = similarity
-
-    for document_id, similarity in best_similarity_per_document.items():
-        if document_id in duplicates:
+    for document in similar_documents:
+        if document["similarity"] < similarity_threshold:
             continue
 
-        document= db.query(Document).filter(Document.id == document_id).first()
+        existing_result = duplicates.get(document["document_id"])
 
-        duplicates[document_id] = {
-            "document_id": document_id,
-            "original_filename": document.original_filename,
-            "similarity": round(similarity, 4),
-            "match_reason": "embedding_similarity",
-        } 
+        if existing_result:
+            existing_result["match_reason"] += "+embedding_similarity"
+            existing_result["similarity"] = document["similarity"]
+        else:
+            duplicates[document["document_id"]] = {
+                "document_id": document["document_id"],
+                "original_filename": document["original_filename"],
+                "similarity": document["similarity"],
+                "match_reason": "embedding_similarity",
+            }
 
-    if not best_similarity_per_document:
-        return []
-    
-    return sorted(duplicates.values(), key=lambda d: d["similarity"], reverse=True)
-    
+    results = list(duplicates.values())
+
+    # Exact hash matches have similarity=None.
+    # Treat them as stronger than semantic-only matches.
+    results.sort(
+        key=lambda result: (
+            result["similarity"] is None,
+            result["similarity"] or 0,
+        ),
+        reverse=True,
+    )
+
+    return results

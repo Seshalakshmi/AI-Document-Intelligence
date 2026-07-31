@@ -7,7 +7,7 @@ from app.db.database import get_db
 from app.schemas.search import SearchResultResponse
 from app.services.search_service import (
     detect_possible_duplicates as detect_duplicates_service,
-    find_similar_docuemnts as find_similar_documents_service,
+    find_similar_documents as find_similar_documents_service,
     hybrid_search as hybrid_search_service,
     keyword_search as keyword_search_service,
     search_invoices as search_invoices_service,

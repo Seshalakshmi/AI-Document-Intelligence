@@ -22,6 +22,7 @@ from pathlib import Path
 import shutil
 import hashlib
 import uuid
+import os
 
 router = APIRouter(prefix="/documents", tags=["DOCUMENT"])
 
@@ -36,6 +37,20 @@ def calculate_file_hash(file_path: Path) -> str:
             sha256_hash.update(byte_block)
 
     return sha256_hash.hexdigest()
+
+
+def calculate_text_hash(raw_text: str) -> str:
+    """
+    Creates a stable hash from extracted text.
+
+    Extra spaces and letter casing are ignored so that text with small
+    formatting differences can still receive the same hash.
+    """
+    normalized_text = " ".join(raw_text.casefold().split())
+
+    return hashlib.sha256(
+        normalized_text.encode("utf-8")
+    ).hexdigest()
 
 
 @router.get("/", response_model=list[DocumentResponse])
@@ -95,6 +110,8 @@ def upload_document(
         file_hash = calculate_file_hash(file_path)
 
         raw_text = extract_text(file_path, file_extension)
+
+        text_hash = calculate_text_hash(raw_text) if raw_text else None
         
         existing_document = db.query(Document).filter(
             Document.file_hash == file_hash
@@ -115,10 +132,11 @@ def upload_document(
             file_type=file_extension,
             file_size=file_size,
             file_hash=file_hash,
+            text_hash=text_hash,
             status="text_extracted" if raw_text else "failed",
             raw_text=raw_text,
             description=description,
-            uploaded_by_id=user_id
+            uploaded_by_id=user_id,
         )
 
         db.add(new_document)
@@ -127,14 +145,18 @@ def upload_document(
 
         if raw_text:
             create_document_chunks(db, new_document, raw_text)
-            create_invoice_extraction(db, new_document, raw_text)
+
+            # Invoice extraction is optional during vectorization development.
+            if os.getenv("OPENAI_API_KEY"):
+                create_invoice_extraction(db, new_document, raw_text)
+
             db.commit()
             db.refresh(new_document)
 
-        return {
-            "message": "Document uploaded successfully",
-            "document": new_document
-        }
+            return {
+                "message": "Document uploaded successfully",
+                "document": new_document
+            }
 
     except SQLAlchemyError as e:
         db.rollback()
