@@ -6,10 +6,15 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
 
+from langfuse.langchain import CallbackHandler
+
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.document_embedding import DocumentEmbedding
 from app.services.embedding_service import create_embedding
+
+
+langfuse_handler = CallbackHandler()
 
 
 def get_relevant_chunks_for_document(
@@ -88,7 +93,9 @@ def answer_document_question(db: Session, document_id: int, question: str) -> di
     context = "\n\n---\n\n".join(f"[chunk {c['chunk_index']}] {c['content']}" for c in chunks)
 
     chain = PROMPT | get_llm() | StrOutputParser()
-    answer = chain.invoke({"context": context, "question": question})
+    answer = chain.invoke({"context": context, "question": question},
+                          config={"callbacks": [langfuse_handler]},
+                          )
 
     return {
         "answer": answer,

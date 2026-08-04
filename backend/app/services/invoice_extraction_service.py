@@ -43,9 +43,9 @@ def extract_invoice_data(raw_text: str) -> dict:
     Extract structured invoice fields from raw invoice text using an LLM
     with structured outputs, instead of hand-written regex parsing.
     """
-    response = client.responses.parse(
+    response = client.chat.completions.parse(
         model="gpt-4o-mini",
-        input=[
+        messages=[
             {
                 "role": "system",
                 "content": (
@@ -58,7 +58,10 @@ def extract_invoice_data(raw_text: str) -> dict:
             },
             {"role": "user", "content": raw_text},
         ],
-        text_format=InvoiceData,
+        response_format=InvoiceData,
+        # Langfuse-specific trace attributes -- shows up nicely in the dashboard
+        name="extract-invoice-data",
+        metadata={"raw_text_length": len(raw_text)},
     )
 
     parsed: InvoiceData = response.output_parsed
