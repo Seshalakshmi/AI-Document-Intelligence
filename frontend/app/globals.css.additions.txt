@@ -1,0 +1,19 @@
+/* Add this block to the TOP of your existing app/globals.css
+   (the one create-next-app already generated, which starts with
+   `@import "tailwindcss";`). Do not delete the existing content --
+   just paste this in above it. */
+
+@theme {
+  --color-accent: #4f46e5; /* indigo-600 -- change to taste */
+}
+
+/* Tailwind v4's `container` utility has no default centering/padding
+   unless you configure it. Our pages use className="container" a lot,
+   so define it explicitly: */
+.container {
+  max-width: 1120px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
