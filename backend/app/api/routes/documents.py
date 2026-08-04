@@ -146,18 +146,31 @@ def upload_document(
         if raw_text:
             create_document_chunks(db, new_document, raw_text)
 
-            # Invoice extraction is optional during vectorization development.
+            # Invoice extraction needs an LLM -- optional until OPENAI_API_KEY is set.
             if os.getenv("OPENAI_API_KEY"):
                 create_invoice_extraction(db, new_document, raw_text)
 
             db.commit()
             db.refresh(new_document)
 
+            # Vectorization only needs the local sentence-transformers model,
+            # not OpenAI -- so it can always run right after upload, no
+            # separate "Vectorize" step or button needed.
+            try:
+                vectorize_document(db, new_document.id)
+                db.refresh(new_document)
+            except ValueError as e:
+                # Don't fail the whole upload if vectorization has a problem
+                # (e.g. empty chunks) -- the document still exists as
+                # "chunked" and can be vectorized later via
+                # POST /documents/{id}/vectorize if needed.
+                print(f"Vectorization failed for document {new_document.id}: {e}")
+
             return {
                 "message": "Document uploaded successfully",
                 "document": new_document
             }
-
+        
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))

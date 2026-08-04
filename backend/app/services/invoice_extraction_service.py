@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
-from openai import OpenAI
+from langfuse.openai import OpenAI
 from pydantic import BaseModel, Field
 import os
 
