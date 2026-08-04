@@ -43,7 +43,7 @@ def extract_invoice_data(raw_text: str) -> dict:
     Extract structured invoice fields from raw invoice text using an LLM
     with structured outputs, instead of hand-written regex parsing.
     """
-    response = client.chat.completions.parse(
+    completion = client.chat.completions.parse(
         model="gpt-4o-mini",
         messages=[
             {
@@ -64,7 +64,7 @@ def extract_invoice_data(raw_text: str) -> dict:
         metadata={"raw_text_length": len(raw_text)},
     )
 
-    parsed: InvoiceData = response.output_parsed
+    parsed: InvoiceData = completion.choices[0].message.parsed
 
     # Convert back to the richer Python types the rest of the app expects
     parsed_date: date | None = None
