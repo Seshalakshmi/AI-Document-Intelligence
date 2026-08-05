@@ -27,18 +27,23 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
     },
   })
 
+  // A document's status only ever finishes at "vectorized" or "failed" --
+  // once it's there, chunks/extracted data won't change anymore, so stop
+  // polling. Same condition as the `doc` query above.
+  const isSettled = doc?.status === 'vectorized' || doc?.status === 'failed'
+
   const { data: chunks } = useQuery<DocumentChunk[], Error>({
     queryKey: ['document', documentId, 'chunks', token],
     queryFn: () => api.getDocumentChunks(documentId, token ?? undefined),
     enabled: !!doc,
-    refetchInterval: 5000,
+    refetchInterval: isSettled ? false : 5000,
   })
 
   const { data: extracted } = useQuery<ExtractedInvoiceData | null, Error>({
     queryKey: ['document', documentId, 'extracted', token],
     queryFn: () => api.getExtractedData(documentId, token ?? undefined),
     enabled: !!doc,
-    refetchInterval: 5000,
+    refetchInterval: isSettled ? false : 5000,
   })
 
   if (isLoading) return <div className="container">Loading…</div>
