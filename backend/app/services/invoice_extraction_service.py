@@ -3,10 +3,10 @@ from decimal import Decimal
 
 
 from pydantic import BaseModel, Field
-import os
 from langfuse.openai import OpenAI
+from app.core.config import settings
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=settings.openai_api_key)
 
 
 class InvoiceData(BaseModel):

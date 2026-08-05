@@ -6,6 +6,8 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
 
+from app.core.config import settings
+from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 
 from app.models.document import Document
@@ -14,8 +16,13 @@ from app.models.document_embedding import DocumentEmbedding
 from app.services.embedding_service import create_embedding
 
 
-langfuse_handler = CallbackHandler()
+Langfuse(
+    public_key=settings.langfuse_public_key,
+    secret_key=settings.langfuse_secret_key,
+    host=settings.langfuse_host,
+)
 
+langfuse_handler = CallbackHandler()
 
 def get_relevant_chunks_for_document(
     db: Session, document_id: int, question: str, limit: int = 5
