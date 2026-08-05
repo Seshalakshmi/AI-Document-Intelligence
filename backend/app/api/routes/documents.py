@@ -80,7 +80,7 @@ def upload_document(
     db: Session = Depends(get_db)
 ):
     try:
-        allowed_extensions = [".pdf", ".txt", ".docx"]
+        allowed_extensions = [".pdf", ".txt", ".docx", ".png", ".jpg", ".jpeg"]
         if not file.filename:
             raise HTTPException(status_code=400, detail="Filename is required.")
 

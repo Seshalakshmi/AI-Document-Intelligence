@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     langfuse_secret_key: str | None = None
     langfuse_host: str = "https://cloud.langfuse.com"
 
+    tesseract_cmd: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore"

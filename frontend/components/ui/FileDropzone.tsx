@@ -7,7 +7,7 @@ interface Props {
 }
 
 // Backend (documents.py) only accepts: .pdf, .txt, .docx -- and enforces a 10MB cap server-side
-export const FileDropzone: React.FC<Props> = ({ onFile, accept = 'pdf|txt|docx', maxSizeBytes = 10 * 1024 * 1024 }) => {
+export const FileDropzone: React.FC<Props> = ({ onFile, accept = 'pdf|txt|docx|png|jpg|jpeg', maxSizeBytes = 10 * 1024 * 1024 }) => {
   const [isDrag, setIsDrag] = useState(false)
   const inputRef = useRef<HTMLInputElement | null>(null)
 
@@ -41,8 +41,8 @@ export const FileDropzone: React.FC<Props> = ({ onFile, accept = 'pdf|txt|docx',
         onDrop={(e) => { e.preventDefault(); setIsDrag(false); handleFiles(e.dataTransfer.files) }}
         className={`border-dashed border-2 rounded-md p-8 text-center ${isDrag ? 'border-accent' : 'border-slate-200'}`}>
         <p className="text-sm text-slate-600">Drag & drop a file here, or click to browse</p>
-        <p className="text-xs text-slate-400 mt-2">Accepted: pdf, txt, docx. Max {(maxSizeBytes / 1024 / 1024).toFixed(0)}MB</p>
-        <input ref={inputRef} type="file" accept=".pdf,.txt,.docx" className="hidden" onChange={(e) => handleFiles(e.target.files)} />
+        <p className="text-xs text-slate-400 mt-2">Accepted: pdf, txt, docx, png, jpg, jpeg. Max {(maxSizeBytes / 1024 / 1024).toFixed(0)}MB</p>
+        <input ref={inputRef} type="file" accept=".pdf,.txt,.docx,.png,.jpg,.jpeg" className="hidden" onChange={(e) => handleFiles(e.target.files)} />
       </div>
     </div>
   )
