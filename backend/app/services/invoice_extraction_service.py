@@ -1,9 +1,10 @@
 from datetime import date
 from decimal import Decimal
 
-from langfuse.openai import OpenAI
+
 from pydantic import BaseModel, Field
 import os
+from langfuse.openai import OpenAI
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
