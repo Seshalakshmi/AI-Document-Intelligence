@@ -1,4 +1,9 @@
 from fastapi import APIRouter, Depends, Body, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse, StreamingResponse
+import io
+import fitz
+
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from app.db.database import get_db
@@ -11,6 +16,7 @@ from app.models.document_chunk import DocumentChunk
 from app.schemas.document import DocumentResponse
 from app.schemas.document_chunk import DocumentChunkResponse
 from app.schemas.extracted_invoice_data import ExtractedInvoiceDataResponse
+from app.schemas.document_stats import DocumentStatsResponse
 
 from app.services.document_service import create_document_chunks, create_invoice_extraction
 from app.services.chunking_service import create_chunks_for_document
@@ -262,3 +268,89 @@ def review_invoice_data(
     db.refresh(invoice_data)
 
     return invoice_data
+
+
+@router.get("/{document_id}/download")
+def download_document(document_id: int, db: Session = Depends(get_db)):
+    document = db.query(Document).filter(Document.id == document_id).first()
+
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found.")
+
+    file_path = Path(document.file_path)
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File is missing from storage.")
+
+    return FileResponse(
+        path=str(file_path),
+        filename=document.original_filename,
+        media_type="application/octet-stream",
+    )
+
+
+@router.get("/{document_id}/thumbnail")
+def get_document_thumbnail(document_id: int, db: Session = Depends(get_db)):
+    """
+    Returns a small PNG preview of the document.
+    - PDF: renders the first page via PyMuPDF.
+    - Image files: returned as-is.
+    - Anything else (docx, txt): 404 -- frontend falls back to a generic
+      file-type icon in that case.
+    """
+    document = db.query(Document).filter(Document.id == document_id).first()
+
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found.")
+
+    file_path = Path(document.file_path)
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File is missing from storage.")
+
+    if document.file_type == ".pdf":
+        pdf_doc = fitz.open(str(file_path))
+        try:
+            page = pdf_doc[0]
+            pix = page.get_pixmap(dpi=100)  # low-res is fine for a thumbnail
+            png_bytes = pix.tobytes("png")
+        finally:
+            pdf_doc.close()
+        return StreamingResponse(io.BytesIO(png_bytes), media_type="image/png")
+
+    if document.file_type in (".png", ".jpg", ".jpeg"):
+        media_type = "image/png" if document.file_type == ".png" else "image/jpeg"
+        return FileResponse(path=str(file_path), media_type=media_type)
+
+    raise HTTPException(status_code=404, detail="No thumbnail available for this file type.")
+
+@router.get("/stats", response_model=DocumentStatsResponse)
+def get_document_stats(db: Session = Depends(get_db)):
+    """
+    Aggregated counts for the dashboard -- deliberately does NOT return
+    the full document list. Use GET /documents/ (the search page) when you
+    actually need individual documents.
+    """
+    total = db.query(func.count(Document.id)).scalar() or 0
+    vectorized = db.query(func.count(Document.id)).filter(Document.status == "vectorized").scalar() or 0
+    failed = db.query(func.count(Document.id)).filter(Document.status == "failed").scalar() or 0
+    processing = total - vectorized - failed
+
+    daily_rows = (
+        db.query(
+            func.date(Document.created_at).label("day"),
+            func.count(Document.id).label("count"),
+        )
+        .group_by(func.date(Document.created_at))
+        .order_by(func.date(Document.created_at))
+        .all()
+    )
+
+    return DocumentStatsResponse(
+        total=total,
+        vectorized=vectorized,
+        processing=processing,
+        failed=failed,
+        daily_counts=[
+            {"date": str(row.day), "count": row.count} for row in daily_rows
+        ],
+    )
+

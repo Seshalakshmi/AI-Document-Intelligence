@@ -30,6 +30,19 @@ export interface Document {
   created_at: string // ISO string
 }
 
+export interface DailyCount {
+  date: string
+  count: number
+}
+
+export interface DocumentStats {
+  total: number
+  vectorized: number
+  processing: number
+  failed: number
+  daily_counts: DailyCount[]
+}
+
 // Response shape of POST /api/documents/upload/{user_id}
 export interface UploadDocumentResponse {
   message: string

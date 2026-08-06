@@ -1,3 +1,5 @@
+import os
+
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -5,11 +7,14 @@ from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.document_embedding import DocumentEmbedding
 from app.services.embedding_service import create_embeddings
+from app.services.description_service import generate_document_description
 
 
 def vectorize_document(db: Session, document_id: int) -> dict:
     """
-    Convert all chunks belonging to one document into embeddings.
+    Convert all chunks belonging to one document into embeddings, and
+    generate a short human-readable description of the document at the
+    same time (if not already set).
 
     Existing embeddings are deleted before new embeddings are saved.
     This allows a document to be vectorized again safely.
@@ -65,6 +70,17 @@ def vectorize_document(db: Session, document_id: int) -> dict:
 
         document.status = "vectorized"
 
+        # Description generation needs an LLM -- optional, same gating as
+        # invoice extraction elsewhere. A failure here shouldn't fail the
+        # whole vectorization, since embeddings are the important part.
+        if os.getenv("OPENAI_API_KEY") or settings.openai_api_key:
+            try:
+                description = generate_document_description(document.raw_text or "")
+                if description:
+                    document.description = description
+            except Exception as e:
+                print(f"Description generation failed for document {document_id}: {e}")
+
         db.commit()
 
         return {
@@ -74,6 +90,7 @@ def vectorize_document(db: Session, document_id: int) -> dict:
             "old_embeddings_deleted": deleted_embeddings,
             "embedding_model": settings.embedding_model_name,
             "embedding_dimension": settings.embedding_dimension,
+            "description": document.description,
         }
 
     except Exception:

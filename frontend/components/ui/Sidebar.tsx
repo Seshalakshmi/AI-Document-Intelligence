@@ -16,7 +16,9 @@ export const Sidebar: React.FC = () => {
         <Link href="/search" className="px-2 py-1 rounded hover:bg-slate-100">
           Search
         </Link>
-        {/* is_admin (not role === 'admin') matches the backend's actual get_current_admin_user check */}
+        <Link href="/chat" className="px-2 py-1 rounded hover:bg-slate-100">
+          Chat
+        </Link>
         {user?.is_admin && (
           <div className="pt-2">
             <div className="text-xs text-slate-500 uppercase">Admin</div>
