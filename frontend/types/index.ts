@@ -102,3 +102,17 @@ export interface LoginResponse {
   user: User
   tokens: AuthTokens
 }
+
+
+export interface GlobalChatSource {
+  document_id: number
+  original_filename: string
+  chunk_id: number
+  chunk_index: number
+  similarity: number
+}
+
+export interface GlobalChatAnswer {
+  answer: string
+  sources: GlobalChatSource[]
+}

@@ -97,13 +97,13 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
             <p className="mt-3 text-sm text-slate-600 italic">{doc.description}</p>
           )}
 
-          <details className="mt-4">
+          {/* <details className="mt-4">
             <summary className="text-sm font-medium cursor-pointer">Raw extracted text</summary>
             <pre className="mt-2 p-3 bg-slate-50 rounded max-h-48 overflow-y-auto text-sm whitespace-pre-wrap">{doc.raw_text ?? 'No text extracted yet.'}</pre>
-          </details>
+          </details> */}
 
           <div className="mt-4">
-            <h4 className="text-sm font-medium">Chunks</h4>
+            <h4 className="text-sm font-medium">Detailed Information</h4>
             <ChunkList chunks={chunks ?? []} />
           </div>
         </div>
@@ -120,30 +120,6 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
       </div>
 
       <aside className="space-y-4">
-        {/* Thumbnail + download */}
-        <div className="border rounded p-4">
-          <div className="aspect-[3/4] bg-slate-50 rounded flex items-center justify-center overflow-hidden">
-            {showThumbnail ? (
-              <img
-                src={api.getDocumentThumbnailUrl(documentId)}
-                alt={`${doc.original_filename} preview`}
-                className="w-full h-full object-contain"
-                onError={() => setThumbnailFailed(true)}
-              />
-            ) : (
-              <FileText size={48} className="text-slate-300" />
-            )}
-          </div>
-          <a
-            href={api.getDocumentDownloadUrl(documentId)}
-            download={doc.original_filename}
-            className="mt-3 w-full inline-flex items-center justify-center gap-2 px-3 py-2 border rounded text-sm font-medium hover:bg-slate-50"
-          >
-            <Download size={14} />
-            Download original
-          </a>
-        </div>
-
         {/* Metadata */}
         <div className="border rounded p-4">
           <h4 className="text-sm font-medium">Metadata</h4>
@@ -190,9 +166,26 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
                   <button
                     onClick={() => reviewMutation.mutate()}
                     disabled={reviewMutation.isPending}
-                    className="px-3 py-1.5 text-xs font-medium border rounded hover:bg-slate-50 disabled:opacity-50"
+                    className="
+                      rounded-md
+                      bg-white
+                      px-3.5
+                      py-2.5
+                      text-sm
+                      font-semibold
+                      text-gray-900
+                      shadow-xs
+                      transition-colors
+                      hover:bg-gray-100
+                      focus-visible:outline-2
+                      focus-visible:outline-offset-2
+                      focus-visible:outline-white
+                      disabled:cursor-not-allowed
+                      disabled:opacity-50
+                      disabled:hover:bg-white
+                    "
                   >
-                    {reviewMutation.isPending ? 'Marking…' : 'Mark as Reviewed'}
+                    {reviewMutation.isPending ? "Marking…" : "Mark as Reviewed"}
                   </button>
                 )}
               </div>
@@ -206,6 +199,31 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
             <div className="text-sm text-slate-500 mt-2">No extracted data available yet.</div>
           )}
         </div>
+
+        {/* Thumbnail + download */}
+        <div className="border rounded p-4">
+          <div className="aspect-[3/4] bg-slate-50 rounded flex items-center justify-center overflow-hidden">
+            {showThumbnail ? (
+              <img
+                src={api.getDocumentThumbnailUrl(documentId)}
+                alt={`${doc.original_filename} preview`}
+                className="w-full h-full object-contain"
+                onError={() => setThumbnailFailed(true)}
+              />
+            ) : (
+              <FileText size={48} className="text-slate-300" />
+            )}
+          </div>
+          <a
+            href={api.getDocumentDownloadUrl(documentId)}
+            download={doc.original_filename}
+            className="mt-3 w-full inline-flex items-center justify-center gap-2 px-3 py-2 border rounded text-sm font-medium hover:bg-slate-50"
+          >
+            <Download size={14} />
+            Download original
+          </a>
+        </div>
+
       </aside>
     </div>
   )

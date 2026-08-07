@@ -68,6 +68,40 @@ def get_documents(db: Session = Depends(get_db)):
     
     return documents
 
+
+@router.get("/stats", response_model=DocumentStatsResponse)
+def get_document_stats(db: Session = Depends(get_db)):
+    """
+    Aggregated counts for the dashboard -- deliberately does NOT return
+    the full document list. Use GET /documents/ (the search page) when you
+    actually need individual documents.
+    """
+    total = db.query(func.count(Document.id)).scalar() or 0
+    vectorized = db.query(func.count(Document.id)).filter(Document.status == "vectorized").scalar() or 0
+    failed = db.query(func.count(Document.id)).filter(Document.status == "failed").scalar() or 0
+    processing = total - vectorized - failed
+
+    daily_rows = (
+        db.query(
+            func.date(Document.created_at).label("day"),
+            func.count(Document.id).label("count"),
+        )
+        .group_by(func.date(Document.created_at))
+        .order_by(func.date(Document.created_at))
+        .all()
+    )
+
+    return DocumentStatsResponse(
+        total=total,
+        vectorized=vectorized,
+        processing=processing,
+        failed=failed,
+        daily_counts=[
+            {"date": str(row.day), "count": row.count} for row in daily_rows
+        ],
+    )
+
+
 @router.get("/{document_id}")
 def get_document_by_id(document_id:int, db: Session = Depends(get_db)):
     document = db.query(Document).filter(Document.id == document_id).first()
@@ -321,36 +355,3 @@ def get_document_thumbnail(document_id: int, db: Session = Depends(get_db)):
         return FileResponse(path=str(file_path), media_type=media_type)
 
     raise HTTPException(status_code=404, detail="No thumbnail available for this file type.")
-
-@router.get("/stats", response_model=DocumentStatsResponse)
-def get_document_stats(db: Session = Depends(get_db)):
-    """
-    Aggregated counts for the dashboard -- deliberately does NOT return
-    the full document list. Use GET /documents/ (the search page) when you
-    actually need individual documents.
-    """
-    total = db.query(func.count(Document.id)).scalar() or 0
-    vectorized = db.query(func.count(Document.id)).filter(Document.status == "vectorized").scalar() or 0
-    failed = db.query(func.count(Document.id)).filter(Document.status == "failed").scalar() or 0
-    processing = total - vectorized - failed
-
-    daily_rows = (
-        db.query(
-            func.date(Document.created_at).label("day"),
-            func.count(Document.id).label("count"),
-        )
-        .group_by(func.date(Document.created_at))
-        .order_by(func.date(Document.created_at))
-        .all()
-    )
-
-    return DocumentStatsResponse(
-        total=total,
-        vectorized=vectorized,
-        processing=processing,
-        failed=failed,
-        daily_counts=[
-            {"date": str(row.day), "count": row.count} for row in daily_rows
-        ],
-    )
-

@@ -6,9 +6,11 @@ import { Document } from '@/types'
 import ChatPanel from '@/components/ui/ChatPanel'
 import { useQuery } from '@tanstack/react-query'
 
+const ALL_DOCS = 'all'
+
 export default function ChatEntryPage() {
   const { token } = useAuth()
-  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [selected, setSelected] = useState<string>(ALL_DOCS)
 
   const { data: docs, isLoading } = useQuery<Document[], Error>({
     queryKey: ['documents', token],
@@ -16,10 +18,11 @@ export default function ChatEntryPage() {
     enabled: !!token,
   })
 
-  // Chat is per-document (backend retrieves context scoped to one
-  // document's embeddings), so only documents that are actually
-  // vectorized show up as chattable.
+  // Per-document chat needs a specific document's embeddings, so only
+  // vectorized documents are selectable when narrowing scope. Global chat
+  // (the default) searches across all of them regardless of this list.
   const chattable = docs?.filter((d) => d.status === 'vectorized') ?? []
+  const selectedId = selected === ALL_DOCS ? undefined : Number(selected)
 
   return (
     <div className="container">
@@ -36,36 +39,28 @@ export default function ChatEntryPage() {
       {chattable.length > 0 && (
         <div className="grid grid-cols-3 gap-6">
           <div className="col-span-1">
-            <label className="block text-sm font-medium mb-2">Select a document</label>
+            <label className="block text-sm font-medium mb-2">Scope</label>
             <select
-              value={selectedId ?? ''}
-              onChange={(e) => setSelectedId(Number(e.target.value))}
+              value={selected}
+              onChange={(e) => setSelected(e.target.value)}
               className="w-full border rounded px-3 py-2"
             >
-              <option value="" disabled>
-                Choose a document…
-              </option>
+              <option value={ALL_DOCS}>All documents</option>
               {chattable.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.original_filename}
                 </option>
               ))}
             </select>
-            {selectedId && (
-              <p className="mt-3 text-xs text-slate-500">
-                {chattable.find((d) => d.id === selectedId)?.description}
-              </p>
-            )}
+            <p className="mt-3 text-xs text-slate-500">
+              {selected === ALL_DOCS
+                ? 'Ask about anything across your whole document library -- e.g. "what did Sarah Bern purchase for Paris in 2026?"'
+                : chattable.find((d) => d.id === selectedId)?.description}
+            </p>
           </div>
 
           <div className="col-span-2">
-            {selectedId ? (
-              <ChatPanel documentId={selectedId} />
-            ) : (
-              <div className="border rounded-md p-4 text-sm text-slate-500">
-                Pick a document on the left to start chatting.
-              </div>
-            )}
+            <ChatPanel documentId={selectedId} />
           </div>
         </div>
       )}

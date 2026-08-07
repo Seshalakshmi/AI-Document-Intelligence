@@ -1,24 +1,35 @@
 'use client'
 import React, { useState } from 'react'
-import { askDocumentQuestion } from '@/lib/api'
+import { askDocumentQuestion, askAllDocumentsQuestion } from '@/lib/api'
+import { GlobalChatSource } from '@/types'
 
-export const ChatPanel: React.FC<{ documentId: number }> = ({ documentId }) => {
-  const [messages, setMessages] = useState<Array<{ from: 'user' | 'bot'; text: string }>>([])
+interface Props {
+  // Omit documentId (or pass undefined) for global chat across every
+  // vectorized document. Pass a documentId to scope chat to just that one.
+  documentId?: number
+}
+
+export const ChatPanel: React.FC<Props> = ({ documentId }) => {
+  const [messages, setMessages] = useState<
+    Array<{ from: 'user' | 'bot'; text: string; sources?: GlobalChatSource[] }>
+  >([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
 
   async function send() {
     if (!input.trim()) return
-    const userMsg = { from: 'user' as const, text: input }
-    setMessages((m) => [...m, userMsg])
+    const question = input
+    setMessages((m) => [...m, { from: 'user', text: question }])
     setInput('')
     setLoading(true)
     try {
-      // Routed through a single API surface; currently mocked in lib/api.ts.
-      // Swapping that function's implementation is the only change needed once
-      // the backend chat endpoint exists.
-      const res = await askDocumentQuestion(documentId, input)
-      setMessages((m) => [...m, { from: 'bot', text: res.answer }])
+      if (documentId != null) {
+        const res = await askDocumentQuestion(documentId, question)
+        setMessages((m) => [...m, { from: 'bot', text: res.answer }])
+      } else {
+        const res = await askAllDocumentsQuestion(question)
+        setMessages((m) => [...m, { from: 'bot', text: res.answer, sources: res.sources }])
+      }
     } catch (err: any) {
       setMessages((m) => [...m, { from: 'bot', text: 'Error: ' + err.message }])
     } finally {
@@ -28,10 +39,22 @@ export const ChatPanel: React.FC<{ documentId: number }> = ({ documentId }) => {
 
   return (
     <div className="border rounded-md p-4">
+      {documentId == null && (
+        <div className="text-xs text-slate-400 mb-2">Searching across all your vectorized documents</div>
+      )}
       <div className="h-64 overflow-y-auto mb-3 flex flex-col gap-2">
         {messages.map((m, i) => (
-          <div key={i} className={`p-2 rounded max-w-[80%] ${m.from === 'user' ? 'bg-slate-100 self-end' : 'bg-indigo-50 self-start'}`}>
-            {m.text}
+          <div key={i} className={`max-w-[85%] ${m.from === 'user' ? 'self-end' : 'self-start'}`}>
+            <div className={`p-2 rounded ${m.from === 'user' ? 'bg-slate-100' : 'bg-indigo-50'}`}>{m.text}</div>
+            {m.sources && m.sources.length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {[...new Set(m.sources.map((s) => s.original_filename))].map((filename) => (
+                  <span key={filename} className="text-[11px] px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full">
+                    {filename}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -41,7 +64,7 @@ export const ChatPanel: React.FC<{ documentId: number }> = ({ documentId }) => {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && send()}
           className="flex-1 border rounded px-3 py-2"
-          placeholder="Ask a question about this document"
+          placeholder={documentId != null ? 'Ask a question about this document' : 'Ask a question about any of your documents'}
         />
         <button onClick={send} disabled={loading} className="px-4 py-2 bg-accent text-white rounded">
           {loading ? '...' : 'Send'}
