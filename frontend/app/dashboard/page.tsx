@@ -35,11 +35,17 @@ export default function DashboardPage() {
 
       {stats && (
         <>
-          <div className="grid grid-cols-4 gap-4 mb-6">
+          <div className="grid gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-5">
             <KpiCard label="Total Documents" value={stats.total} color="teal" icon={FileStack} />
             <KpiCard label="Ready to Chat" value={stats.vectorized} color="cyan" icon={CheckCircle2} />
             <KpiCard label="Processing" value={stats.processing} color="amber" icon={Loader2} />
             <KpiCard label="Failed" value={stats.failed} color="orange" icon={AlertTriangle} />
+            <KpiCard
+              label="Avg Confidence"
+              value={stats.average_confidence == null ? '-' : `${Math.round(stats.average_confidence * 100)}%`}
+              color="cyan"
+              icon={CheckCircle2}
+            />
           </div>
 
           <div className="mb-6">

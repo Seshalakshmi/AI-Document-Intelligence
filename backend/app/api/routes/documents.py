@@ -91,6 +91,12 @@ def get_document_stats(db: Session = Depends(get_db)):
         .all()
     )
 
+    average_confidence = (
+    db.query(func.avg(ExtractedInvoiceData.confidence_score))
+    .filter(ExtractedInvoiceData.confidence_score.isnot(None))
+    .scalar()
+    )
+
     return DocumentStatsResponse(
         total=total,
         vectorized=vectorized,
@@ -99,6 +105,7 @@ def get_document_stats(db: Session = Depends(get_db)):
         daily_counts=[
             {"date": str(row.day), "count": row.count} for row in daily_rows
         ],
+        average_confidence=round(float(average_confidence), 4) if average_confidence is not None else None
     )
 
 
@@ -319,6 +326,36 @@ def download_document(document_id: int, db: Session = Depends(get_db)):
         path=str(file_path),
         filename=document.original_filename,
         media_type="application/octet-stream",
+    )
+
+
+@router.get("/{document_id}/preview")
+def preview_document(document_id: int, db: Session = Depends(get_db)):
+    document = db.query(Document).filter(Document.id == document_id).first()
+
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found.")
+
+    file_path = Path(document.file_path)
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File is missing from storage.")
+
+    media_types = {
+        ".pdf": "application/pdf",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".txt": "text/plain",
+    }
+    media_type = media_types.get(document.file_type)
+
+    if media_type is None:
+        raise HTTPException(status_code=404, detail="Preview is not available for this file type.")
+
+    return FileResponse(
+        path=str(file_path),
+        media_type=media_type,
+        headers={"Content-Disposition": f'inline; filename="{document.original_filename}"'},
     )
 
 

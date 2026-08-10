@@ -41,6 +41,7 @@ export interface DocumentStats {
   processing: number
   failed: number
   daily_counts: DailyCount[]
+  average_confidence: number | null
 }
 
 // Response shape of POST /api/documents/upload/{user_id}
@@ -90,6 +91,12 @@ export interface SearchResult {
   similarity: number | null
   score: number | null
   match_type: string | null
+  invoice_date?: string | null
+  total_amount?: number | null
+  currency?: string | null
+  confidence_score?: number | null
+  supplier_name?: string | null
+  invoice_number?: string | null
 }
 
 // Auth response shapes

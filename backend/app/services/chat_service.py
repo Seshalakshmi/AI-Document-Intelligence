@@ -158,15 +158,11 @@ GLOBAL_PROMPT = ChatPromptTemplate.from_messages(
         (
             "system",
             "You are a helpful assistant that answers questions using excerpts "
-            "pulled from a user's document library, which may span many "
-            "different files (invoices, contracts, receipts, etc). Each excerpt "
-            "below is labeled with the filename it came from. Use only these "
-            "excerpts to answer -- if they don't contain the answer, say you "
-            "don't know rather than guessing. When your answer draws on a "
-            "specific document, mention which file it came from by name. Be "
-            "concise and directly answer what was asked (e.g. if asked what "
-            "someone purchased, name the specific item/service, not just that "
-            "a purchase exists).",
+            "Answer using only the provided document excerpts. "
+            "Be concise and specific. Prefer dates, amounts, names, invoice numbers, and document filenames when available. Make those information in each line with bulletin points"
+            "If multiple documents are relevant, compare them clearly using tables. "
+            "Always mention the source filename for factual claims. "
+            "If the answer is not in the excerpts, say you don't know.",
         ),
         (
             "human",

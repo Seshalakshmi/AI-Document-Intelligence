@@ -47,7 +47,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
   const vectorizeMutation = useMutation({
     mutationFn: () => api.vectorizeDocument(documentId, token ?? undefined),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId, token] }),
-    onError: (err: any) => alert('Vectorization failed: ' + err.message),
+    onError: (err: unknown) => alert('Vectorization failed: ' + getErrorMessage(err)),
   })
 
   const reviewMutation = useMutation({
@@ -60,7 +60,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
       return api.reviewInvoiceData(documentId, user.id, {}, token ?? undefined)
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId, 'extracted', token] }),
-    onError: (err: any) => alert('Marking as reviewed failed: ' + err.message),
+    onError: (err: unknown) => alert('Marking as reviewed failed: ' + getErrorMessage(err)),
   })
 
   if (isLoading) return <div className="container">Loading…</div>
@@ -69,6 +69,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
 
   const canVectorize = doc.status === 'chunked' || doc.status === 'vectorized'
   const showThumbnail = ['.pdf', '.png', '.jpg', '.jpeg'].includes(doc.file_type) && !thumbnailFailed
+  const documentUrl = api.getDocumentDownloadUrl(documentId)
 
   return (
     <div className="container grid grid-cols-3 gap-6">
@@ -102,20 +103,19 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
             <pre className="mt-2 p-3 bg-slate-50 rounded max-h-48 overflow-y-auto text-sm whitespace-pre-wrap">{doc.raw_text ?? 'No text extracted yet.'}</pre>
           </details> */}
 
-          <div className="mt-4">
-            <h4 className="text-sm font-medium">Detailed Information</h4>
+          <section className="mt-5 space-y-5">
+            <div>
+              <h4 className="text-sm font-medium">Detailed Information</h4>
+              <p className="mt-1 text-xs text-slate-500">Structured extracted chunks from this document.</p>
+            </div>
+
             <ChunkList chunks={chunks ?? []} />
-          </div>
+          </section>
         </div>
 
         <div className="mt-4">
-          {doc.status === 'vectorized' ? (
-            <ChatPanel documentId={documentId} />
-          ) : (
-            <div className="border rounded-md p-4 text-sm text-slate-500">
-              Chat is available once this document is vectorized.
-            </div>
-          )}
+          <div className="mb-2 text-xs text-slate-500">Global chat searches across all vectorized documents.</div>
+          <ChatPanel />
         </div>
       </div>
 
@@ -161,7 +161,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
               </table>
 
               <div className="mt-3 flex items-center justify-between">
-                <ConfidenceBadge value={extracted.confidence_score} />
+                {!extracted.is_reviewed && <ConfidenceBadge value={extracted.confidence_score} />}
                 {!extracted.is_reviewed && (
                   <button
                     onClick={() => reviewMutation.mutate()}
@@ -200,7 +200,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
           )}
         </div>
 
-        {/* Thumbnail + download */}
+        {/* Preview + download */}
         <div className="border rounded p-4">
           <div className="aspect-[3/4] bg-slate-50 rounded flex items-center justify-center overflow-hidden">
             {showThumbnail ? (
@@ -215,7 +215,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
             )}
           </div>
           <a
-            href={api.getDocumentDownloadUrl(documentId)}
+            href={documentUrl}
             download={doc.original_filename}
             className="mt-3 w-full inline-flex items-center justify-center gap-2 px-3 py-2 border rounded text-sm font-medium hover:bg-slate-50"
           >
@@ -227,4 +227,8 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
       </aside>
     </div>
   )
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Unknown error'
 }

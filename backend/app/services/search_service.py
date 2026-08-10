@@ -133,7 +133,7 @@ def search_invoices(
 ) -> list[dict]:
     invoice_document = (
         db.query(ExtractedInvoiceData, Document)
-        .join(Document, Document.id == ExtractedInvoiceData.document_id)
+        .outerjoin(ExtractedInvoiceData, ExtractedInvoiceData.document_id == Document.id)
     )
  
     if supplier_name:

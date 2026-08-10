@@ -3,8 +3,9 @@ import React, { useMemo, useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import * as api from '@/lib/api'
 import DocumentTile from '@/components/ui/DocumentTile'
-import { Document, SearchResult } from '@/types'
-import { useQuery } from '@tanstack/react-query'
+import SearchResultCard from '@/components/ui/SearchResultCard'
+import { Document, ExtractedInvoiceData, SearchResult } from '@/types'
+import { useQueries, useQuery } from '@tanstack/react-query'
 
 type SearchMode = 'keyword' | 'semantic' | 'hybrid'
 
@@ -20,6 +21,7 @@ export default function SearchPage() {
   const [fileType, setFileType] = useState<string>('') // closest proxy to "category" -- see note below
   const [dateFrom, setDateFrom] = useState<string>('')
   const [dateTo, setDateTo] = useState<string>('')
+  
 
   // Default: load every document. This is what renders as tiles until the
   // user actually searches.
@@ -29,10 +31,32 @@ export default function SearchPage() {
     enabled: !!token,
   })
 
+  const invoiceDataQueries = useQueries({
+    queries: (allDocs ?? []).map((doc) => ({
+      queryKey: ['document', doc.id, 'extracted', token],
+      queryFn: () => api.getExtractedData(doc.id, token ?? undefined),
+      enabled: !!token,
+      staleTime: 60_000,
+    })),
+  })
+
+  const invoiceDataByDocumentId = useMemo(() => {
+    const map = new Map<number, ExtractedInvoiceData>()
+    ;(allDocs ?? []).forEach((doc, index) => {
+      const invoiceData = invoiceDataQueries[index]?.data
+      if (invoiceData) map.set(doc.id, invoiceData)
+    })
+    return map
+  }, [allDocs, invoiceDataQueries])
+
   const years = useMemo(() => {
-    const set = new Set((allDocs ?? []).map((d) => new Date(d.created_at).getFullYear()))
+    const dates = searchResults
+      ? searchResults.map((result) => getSearchResultDate(result, allDocs))
+      : (allDocs ?? []).map((document) => getDocumentDate(document, invoiceDataByDocumentId))
+    const validDates = dates.filter((date): date is string => Boolean(date))
+    const set = new Set(validDates.map((date) => new Date(date).getFullYear()))
     return Array.from(set).sort((a, b) => b - a)
-  }, [allDocs])
+  }, [allDocs, invoiceDataByDocumentId, searchResults])
 
   const fileTypes = useMemo(() => {
     const set = new Set((allDocs ?? []).map((d) => d.file_type.replace('.', '')))
@@ -50,8 +74,8 @@ export default function SearchPage() {
       const fn = mode === 'semantic' ? api.searchSemantic : mode === 'hybrid' ? api.searchHybrid : api.searchKeyword
       const res = await fn(q, token ?? undefined)
       setSearchResults(res)
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(getErrorMessage(err))
     } finally {
       setSearching(false)
     }
@@ -82,10 +106,21 @@ export default function SearchPage() {
   }, [searchResults, allDocs])
 
   const filtered = tileSource.filter(({ doc }) => {
-    if (year && new Date(doc.created_at).getFullYear() !== Number(year)) return false
+    const documentDate = getDocumentDate(doc, invoiceDataByDocumentId)
+    if (year && new Date(documentDate).getFullYear() !== Number(year)) return false
     if (fileType && doc.file_type.replace('.', '') !== fileType) return false
-    if (dateFrom && new Date(doc.created_at) < new Date(dateFrom)) return false
-    if (dateTo && new Date(doc.created_at) > new Date(dateTo)) return false
+    if (dateFrom && new Date(documentDate) < new Date(dateFrom)) return false
+    if (dateTo && new Date(documentDate) > new Date(dateTo)) return false
+    return true
+  })
+
+  const filteredSearchResults = (searchResults ?? []).filter((result) => {
+    const doc = allDocs?.find((d) => d.id === result.document_id)
+    const documentDate = getSearchResultDate(result, allDocs)
+    if (year && (!documentDate || new Date(documentDate).getFullYear() !== Number(year))) return false
+    if (fileType && doc?.file_type.replace('.', '') !== fileType) return false
+    if (dateFrom && (!documentDate || new Date(documentDate) < new Date(dateFrom))) return false
+    if (dateTo && (!documentDate || new Date(documentDate) > new Date(dateTo))) return false
     return true
   })
 
@@ -158,12 +193,35 @@ export default function SearchPage() {
 
       {/* Tiles */}
       {isLoading && <div>Loading…</div>}
-      {!isLoading && filtered.length === 0 && <div className="text-sm text-slate-500">No documents match.</div>}
+      {!isLoading && (searchResults ? filteredSearchResults.length === 0 : filtered.length === 0) && (
+        <div className="text-sm text-slate-500">No documents match.</div>
+      )}
       <div className="space-y-2">
-        {filtered.map(({ doc, snippet }) => (
-          <DocumentTile key={doc.id} doc={doc} matchSnippet={snippet} />
-        ))}
+        {searchResults
+          ? filteredSearchResults.map((result) => (
+              <SearchResultCard key={`${result.document_id}-${result.chunk_id}`} result={result} />
+            ))
+          : filtered.map(({ doc, snippet }) => (
+              <DocumentTile
+                key={doc.id}
+                doc={doc}
+                documentDate={getDocumentDate(doc, invoiceDataByDocumentId)}
+                matchSnippet={snippet}
+              />
+            ))}
       </div>
     </div>
   )
+}
+
+function getSearchResultDate(result: SearchResult, docs?: Document[]) {
+  return result.invoice_date ?? docs?.find((doc) => doc.id === result.document_id)?.created_at ?? null
+}
+
+function getDocumentDate(document: Document, invoiceDataByDocumentId: Map<number, ExtractedInvoiceData>) {
+  return invoiceDataByDocumentId.get(document.id)?.invoice_date ?? document.created_at
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Unknown error'
 }

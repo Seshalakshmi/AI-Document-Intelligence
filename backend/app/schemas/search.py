@@ -13,3 +13,10 @@ class SearchResultResponse(BaseModel):
     similarity: float | None = None
     score: float | None = None
     match_type: str | None = None
+
+    invoice_date: str | None = None
+    total_amount: float | None = None
+    currency: str | None = None
+    confidence_score: float | None = None
+    supplier_name: str | None = None
+    invoice_number: str | None = None
