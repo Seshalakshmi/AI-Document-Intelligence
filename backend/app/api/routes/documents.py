@@ -29,6 +29,7 @@ import shutil
 import hashlib
 import uuid
 import os
+import json
 
 router = APIRouter(prefix="/documents", tags=["DOCUMENT"])
 
@@ -234,7 +235,88 @@ def get_document_chunks(document_id: int, db: Session = Depends(get_db)):
         DocumentChunk.document_id == document_id
     ).order_by(DocumentChunk.chunk_index).all()
 
-    return chunks
+    invoice_data = db.query(ExtractedInvoiceData).filter(
+        ExtractedInvoiceData.document_id == document_id
+    ).first()
+
+    structured_data = build_invoice_structured_data(invoice_data)
+
+    return [
+        {
+            "id": chunk.id,
+            "document_id": chunk.document_id,
+            "chunk_index": chunk.chunk_index,
+            "content": chunk.content,
+            "start_char": chunk.start_char,
+            "end_char": chunk.end_char,
+            "token_count": chunk.token_count,
+            "created_at": chunk.created_at,
+            "document_type": "invoice" if structured_data and chunk.chunk_index == 0 else None,
+            "structured_data": structured_data if chunk.chunk_index == 0 else None,
+        }
+        for chunk in chunks
+    ]
+
+
+def format_money(value, currency: str | None = None) -> str | None:
+    if value is None:
+        return None
+
+    prefix = "$" if currency in (None, "USD") else f"{currency} "
+    return f"{prefix}{float(value):,.2f}"
+
+
+def build_invoice_structured_data(invoice_data: ExtractedInvoiceData | None) -> dict | None:
+    if invoice_data is None:
+        return None
+
+    raw_data = {}
+    if invoice_data.raw_extraction_json:
+        try:
+            raw_data = json.loads(invoice_data.raw_extraction_json)
+        except json.JSONDecodeError:
+            raw_data = {}
+
+    subtotal = raw_data.get("subtotal") or invoice_data.subtotal
+    total = raw_data.get("total_amount") or invoice_data.total_amount
+
+    return {
+        "invoice_number": raw_data.get("invoice_number") or invoice_data.invoice_number,
+        "company": raw_data.get("company") or raw_data.get("supplier_name") or invoice_data.supplier_name,
+        "bill_to": normalize_party(raw_data.get("bill_to")),
+        "ship_to": normalize_party(raw_data.get("ship_to")),
+        "date": str(invoice_data.invoice_date) if invoice_data.invoice_date else raw_data.get("invoice_date"),
+        "ship_mode": raw_data.get("ship_mode"),
+        "balance_due": raw_data.get("balance_due") or format_money(total, invoice_data.currency),
+        "items": raw_data.get("items") or [],
+        "totals": {
+            "subtotal": raw_data.get("subtotal") if isinstance(raw_data.get("subtotal"), str) else format_money(subtotal, invoice_data.currency),
+            "discount": raw_data.get("discount"),
+            "shipping": raw_data.get("shipping"),
+            "total": raw_data.get("total") or format_money(total, invoice_data.currency),
+        },
+        "notes": raw_data.get("notes"),
+        "terms": raw_data.get("terms") or invoice_data.payment_terms,
+        "order_id": raw_data.get("order_id"),
+    }
+
+
+def normalize_party(value) -> dict | None:
+    if value is None:
+        return None
+
+    if isinstance(value, str):
+        return {"name": value}
+
+    if isinstance(value, dict):
+        return {
+            "name": value.get("name"),
+            "city": value.get("city"),
+            "state": value.get("state"),
+            "country": value.get("country"),
+        }
+
+    return None
 
 
 @router.get("/{document_id}/invoice-data", response_model=ExtractedInvoiceDataResponse)

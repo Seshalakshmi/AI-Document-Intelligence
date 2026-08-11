@@ -59,6 +59,40 @@ export interface DocumentChunk {
   end_char: number | null
   token_count: number | null
   created_at: string
+  document_type?: string | null
+  structured_data?: InvoiceStructuredData | null
+}
+
+export interface InvoiceStructuredData {
+  invoice_number?: string | null
+  company?: string | null
+  bill_to?: {
+    name?: string | null
+  } | null
+  ship_to?: {
+    name?: string | null
+    city?: string | null
+    state?: string | null
+    country?: string | null
+  } | null
+  date?: string | null
+  ship_mode?: string | null
+  balance_due?: string | null
+  items?: Array<{
+    name?: string | null
+    quantity?: string | number | null
+    rate?: string | null
+    amount?: string | null
+  }> | null
+  totals?: {
+    subtotal?: string | null
+    discount?: string | null
+    shipping?: string | null
+    total?: string | null
+  } | null
+  notes?: string | null
+  terms?: string | null
+  order_id?: string | null
 }
 
 export interface ExtractedInvoiceData {
