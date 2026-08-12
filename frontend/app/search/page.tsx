@@ -6,6 +6,7 @@ import DocumentTile from '@/components/ui/DocumentTile'
 import SearchResultCard from '@/components/ui/SearchResultCard'
 import { Document, ExtractedInvoiceData, SearchResult } from '@/types'
 import { useQueries, useQuery } from '@tanstack/react-query'
+import { FilterX, Search } from 'lucide-react'
 
 type SearchMode = 'keyword' | 'semantic' | 'hybrid'
 
@@ -15,16 +16,11 @@ export default function SearchPage() {
   const [mode, setMode] = useState<SearchMode>('keyword')
   const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null)
   const [searching, setSearching] = useState(false)
-
-  // Filters
   const [year, setYear] = useState<string>('')
-  const [fileType, setFileType] = useState<string>('') // closest proxy to "category" -- see note below
+  const [fileType, setFileType] = useState<string>('')
   const [dateFrom, setDateFrom] = useState<string>('')
   const [dateTo, setDateTo] = useState<string>('')
-  
 
-  // Default: load every document. This is what renders as tiles until the
-  // user actually searches.
   const { data: allDocs, isLoading } = useQuery<Document[], Error>({
     queryKey: ['documents', token],
     queryFn: () => api.listDocuments(token ?? undefined),
@@ -66,7 +62,7 @@ export default function SearchPage() {
   async function doSearch(e?: React.FormEvent) {
     e?.preventDefault()
     if (q.trim().length < 2) {
-      setSearchResults(null) // fall back to default listing
+      setSearchResults(null)
       return
     }
     setSearching(true)
@@ -86,9 +82,6 @@ export default function SearchPage() {
     setSearchResults(null)
   }
 
-  // Build the tile list: either the default full listing, or search hits
-  // mapped back to their parent Document (search results are chunk-level,
-  // tiles are document-level) -- de-duplicated, preserving relevance order.
   const tileSource: Array<{ doc: Document; snippet?: string }> = useMemo(() => {
     if (searchResults) {
       const seen = new Set<number>()
@@ -124,79 +117,104 @@ export default function SearchPage() {
     return true
   })
 
+  const resultCount = searchResults ? filteredSearchResults.length : filtered.length
+  const hasFilters = Boolean(year || fileType || dateFrom || dateTo)
+
   return (
-    <div className="container">
-      <h2 className="text-lg font-semibold mb-4">Search Documents</h2>
-
-      <form onSubmit={doSearch} className="flex gap-2 mb-3">
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search document content (min 2 chars) — leave empty to browse all"
-          className="flex-1 border rounded px-3 py-2"
-        />
-        <select value={mode} onChange={(e) => setMode(e.target.value as SearchMode)} className="border rounded px-2 py-2">
-          <option value="keyword">Keyword</option>
-          <option value="semantic">Semantic</option>
-          <option value="hybrid">Hybrid</option>
-        </select>
-        <button className="px-4 py-2 bg-accent text-white rounded" disabled={searching}>
-          {searching ? '...' : 'Search'}
-        </button>
-        {searchResults && (
-          <button type="button" onClick={clearSearch} className="px-3 py-2 border rounded text-sm">
-            Clear
-          </button>
-        )}
-      </form>
-
-      {/* Filters -- always available, apply on top of either the default
-          listing or active search results */}
-      <div className="flex flex-wrap gap-3 mb-6 text-sm">
-        <select value={year} onChange={(e) => setYear(e.target.value)} className="border rounded px-2 py-1.5">
-          <option value="">All years</option>
-          {years.map((y) => (
-            <option key={y} value={y}>{y}</option>
-          ))}
-        </select>
-
-        {/* NOTE: your schema doesn't have a true "category" field yet, so
-            this filters by file type (pdf/docx/image) as the closest
-            available proxy. If you want real categories (e.g. Invoice,
-            Contract, Receipt), that needs a new field populated during
-            extraction -- happy to add that as a follow-up. */}
-        <select value={fileType} onChange={(e) => setFileType(e.target.value)} className="border rounded px-2 py-1.5">
-          <option value="">All file types</option>
-          {fileTypes.map((t) => (
-            <option key={t} value={t}>{t.toUpperCase()}</option>
-          ))}
-        </select>
-
-        <div className="flex items-center gap-1">
-          <span className="text-slate-500">From</span>
-          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="border rounded px-2 py-1.5" />
+    <div className="container page-stack">
+      <div className="page-header">
+        <div>
+          <div className="page-kicker">Discovery</div>
+          <h1 className="page-title">Search documents</h1>
+          <p className="page-subtitle">
+            Browse your document library or search inside extracted text with keyword, semantic, or hybrid matching.
+          </p>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="text-slate-500">To</span>
-          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="border rounded px-2 py-1.5" />
+        <div className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600">
+          {resultCount} {resultCount === 1 ? 'result' : 'results'}
         </div>
-
-        {(year || fileType || dateFrom || dateTo) && (
-          <button
-            onClick={() => { setYear(''); setFileType(''); setDateFrom(''); setDateTo('') }}
-            className="text-slate-500 underline"
-          >
-            Reset filters
-          </button>
-        )}
       </div>
 
-      {/* Tiles */}
-      {isLoading && <div>Loading…</div>}
-      {!isLoading && (searchResults ? filteredSearchResults.length === 0 : filtered.length === 0) && (
-        <div className="text-sm text-slate-500">No documents match.</div>
+      <div className="panel panel-pad space-y-4">
+        <form onSubmit={doSearch} className="flex flex-col gap-3 lg:flex-row">
+          <div className="relative flex-1">
+            <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search document content, supplier names, invoice numbers..."
+              className="input pl-10"
+            />
+          </div>
+          <div className="flex rounded-md border border-slate-300 bg-white p-1 shadow-sm">
+            {(['keyword', 'semantic', 'hybrid'] as SearchMode[]).map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setMode(item)}
+                className={`rounded px-3 py-1.5 text-sm font-medium capitalize transition ${
+                  mode === item ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+          <button className="btn btn-primary" disabled={searching}>
+            {searching ? 'Searching...' : 'Search'}
+          </button>
+          {searchResults && (
+            <button type="button" onClick={clearSearch} className="btn btn-secondary">
+              Clear
+            </button>
+          )}
+        </form>
+
+        <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
+          <select value={year} onChange={(e) => setYear(e.target.value)} className="select">
+            <option value="">All years</option>
+            {years.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+          <select value={fileType} onChange={(e) => setFileType(e.target.value)} className="select">
+            <option value="">All file types</option>
+            {fileTypes.map((t) => (
+              <option key={t} value={t}>
+                {t.toUpperCase()}
+              </option>
+            ))}
+          </select>
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="input" aria-label="From date" />
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="input" aria-label="To date" />
+          {hasFilters && (
+            <button
+              type="button"
+              onClick={() => {
+                setYear('')
+                setFileType('')
+                setDateFrom('')
+                setDateTo('')
+              }}
+              className="btn btn-secondary"
+            >
+              <FilterX size={16} />
+              Reset filters
+            </button>
+          )}
+        </div>
+      </div>
+
+      {isLoading && <div className="panel panel-pad text-sm text-slate-500">Loading documents...</div>}
+      {!isLoading && resultCount === 0 && (
+        <div className="panel panel-pad text-center">
+          <div className="text-sm font-semibold text-slate-950">No documents match</div>
+          <p className="mt-1 text-sm text-slate-500">Try a broader query or clear the active filters.</p>
+        </div>
       )}
-      <div className="space-y-2">
+      <div className="space-y-3">
         {searchResults
           ? filteredSearchResults.map((result) => (
               <SearchResultCard key={`${result.document_id}-${result.chunk_id}`} result={result} />

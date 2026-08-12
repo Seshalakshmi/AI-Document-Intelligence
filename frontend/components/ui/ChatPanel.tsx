@@ -1,14 +1,12 @@
 'use client'
 import React, { useState } from 'react'
 import Link from 'next/link'
-import { askDocumentQuestion, askAllDocumentsQuestion } from '@/lib/api'
+import { askAllDocumentsQuestion, askDocumentQuestion } from '@/lib/api'
 import { GlobalChatSource } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
-import { FileText } from 'lucide-react'
+import { Bot, FileText, Send, UserRound } from 'lucide-react'
 
 interface Props {
-  // Omit documentId (or pass undefined) for global chat across every
-  // vectorized document. Pass a documentId to scope chat to just that one.
   documentId?: number
   onSourceSelect?: (documentId: number) => void
 }
@@ -43,57 +41,91 @@ export const ChatPanel: React.FC<Props> = ({ documentId, onSourceSelect }) => {
   }
 
   return (
-    <div className="border rounded-md p-4">
-      {documentId == null && (
-        <div className="text-xs text-slate-400 mb-2">Searching across all your vectorized documents</div>
-      )}
-      <div className="h-64 overflow-y-auto mb-3 flex flex-col gap-2">
+    <div className="panel flex min-h-[460px] flex-col overflow-hidden">
+      <div className="border-b border-slate-200 px-4 py-3">
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+          <Bot size={17} className="text-blue-600" />
+          Document assistant
+        </div>
+        <div className="mt-1 text-xs text-slate-500">
+          {documentId == null ? 'Searching across all vectorized documents' : 'Focused on the current document'}
+        </div>
+      </div>
+
+      <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50/70 p-4">
+        {messages.length === 0 && (
+          <div className="rounded-lg border border-dashed border-slate-300 bg-white p-5 text-center text-sm text-slate-500">
+            Ask a question to get an answer with source references.
+          </div>
+        )}
         {messages.map((m, i) => (
-          <div key={i} className={`max-w-[85%] ${m.from === 'user' ? 'self-end' : 'self-start'}`}>
-            <div className={`p-2 rounded ${m.from === 'user' ? 'bg-slate-100' : 'bg-indigo-50'}`}>{m.text}</div>
-            {m.sources && m.sources.length > 0 && (
-              <div className="mt-2 rounded border bg-white p-2">
-                <div className="mb-1 text-[11px] font-medium text-slate-500">Sources</div>
-                <div className="flex flex-wrap gap-1">
-                  {dedupeSources(m.sources).map((source) =>
-                    onSourceSelect ? (
-                      <button
-                        key={source.document_id}
-                        type="button"
-                        onClick={() => onSourceSelect(source.document_id)}
-                        className="inline-flex max-w-full items-center gap-1 rounded bg-slate-100 px-2 py-1 text-left text-[11px] text-slate-600 hover:bg-slate-200"
-                      >
-                        <FileText size={12} className="shrink-0" />
-                        <span className="truncate">{source.original_filename}</span>
-                      </button>
-                    ) : (
-                      <Link
-                        key={source.document_id}
-                        href={`/documents/${source.document_id}`}
-                        className="inline-flex max-w-full items-center gap-1 rounded bg-slate-100 px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-200"
-                      >
-                        <FileText size={12} className="shrink-0" />
-                        <span className="truncate">{source.original_filename}</span>
-                      </Link>
-                    )
-                  )}
-                </div>
+          <div key={i} className={`flex gap-2 ${m.from === 'user' ? 'justify-end' : 'justify-start'}`}>
+            {m.from === 'bot' && (
+              <span className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700">
+                <Bot size={14} />
+              </span>
+            )}
+            <div className={`max-w-[86%] ${m.from === 'user' ? 'items-end' : 'items-start'}`}>
+              <div
+                className={`rounded-lg px-3 py-2 text-sm leading-6 shadow-sm ${
+                  m.from === 'user' ? 'bg-blue-600 text-white' : 'border border-slate-200 bg-white text-slate-700'
+                }`}
+              >
+                {m.text}
               </div>
+              {m.sources && m.sources.length > 0 && (
+                <div className="mt-2 rounded-lg border border-slate-200 bg-white p-3">
+                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Sources</div>
+                  <div className="flex flex-wrap gap-2">
+                    {dedupeSources(m.sources).map((source) =>
+                      onSourceSelect ? (
+                        <button
+                          key={source.document_id}
+                          type="button"
+                          onClick={() => onSourceSelect(source.document_id)}
+                          className="inline-flex max-w-full items-center gap-1.5 rounded-md bg-slate-100 px-2 py-1 text-left text-xs text-slate-600 hover:bg-slate-200"
+                        >
+                          <FileText size={13} className="shrink-0" />
+                          <span className="truncate">{source.original_filename}</span>
+                        </button>
+                      ) : (
+                        <Link
+                          key={source.document_id}
+                          href={`/documents/${source.document_id}`}
+                          className="inline-flex max-w-full items-center gap-1.5 rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600 hover:bg-slate-200"
+                        >
+                          <FileText size={13} className="shrink-0" />
+                          <span className="truncate">{source.original_filename}</span>
+                        </Link>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            {m.from === 'user' && (
+              <span className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-600">
+                <UserRound size={14} />
+              </span>
             )}
           </div>
         ))}
       </div>
-      <div className="flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && send()}
-          className="flex-1 border rounded px-3 py-2"
-          placeholder={documentId != null ? 'Ask a question about this document' : 'Ask a question about any of your documents'}
-        />
-        <button onClick={send} disabled={loading} className="px-4 py-2 bg-accent text-white rounded">
-          {loading ? '...' : 'Send'}
-        </button>
+
+      <div className="border-t border-slate-200 bg-white p-3">
+        <div className="flex gap-2">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && send()}
+            className="input"
+            placeholder={documentId != null ? 'Ask about this document' : 'Ask about any document'}
+          />
+          <button onClick={send} disabled={loading} className="btn btn-primary shrink-0">
+            <Send size={16} />
+            {loading ? 'Sending...' : 'Send'}
+          </button>
+        </div>
       </div>
     </div>
   )

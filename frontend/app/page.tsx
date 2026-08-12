@@ -12,5 +12,9 @@ export default function HomePage() {
     router.replace(user ? '/dashboard' : '/login')
   }, [user, loading, router])
 
-  return <div className="container p-6 text-sm text-slate-500">Loading…</div>
+  return (
+    <div className="container">
+      <div className="panel panel-pad text-sm text-slate-500">Loading...</div>
+    </div>
+  )
 }

@@ -30,6 +30,7 @@ import hashlib
 import uuid
 import os
 import json
+import re
 
 router = APIRouter(prefix="/documents", tags=["DOCUMENT"])
 
@@ -239,7 +240,7 @@ def get_document_chunks(document_id: int, db: Session = Depends(get_db)):
         ExtractedInvoiceData.document_id == document_id
     ).first()
 
-    structured_data = build_invoice_structured_data(invoice_data)
+    structured_data = build_invoice_structured_data(invoice_data, document.raw_text)
 
     return [
         {
@@ -266,7 +267,33 @@ def format_money(value, currency: str | None = None) -> str | None:
     return f"{prefix}{float(value):,.2f}"
 
 
-def build_invoice_structured_data(invoice_data: ExtractedInvoiceData | None) -> dict | None:
+# Real invoices label this field inconsistently, so the LLM extraction can
+# reasonably miss it. Match against common label variants as a deterministic
+# backstop over the document's full raw text.
+SHIP_MODE_LABEL_PATTERN = re.compile(
+    r"^\s*(?:ship(?:ping)?\s*(?:mode|method|via)|delivery\s*method|"
+    r"service\s*level|freight\s*(?:method|terms)|carrier)\s*[:\-]\s*(.+?)\s*$",
+    re.IGNORECASE,
+)
+
+
+def extract_ship_mode_fallback(raw_text: str | None) -> str | None:
+    if not raw_text:
+        return None
+
+    for line in raw_text.splitlines():
+        match = SHIP_MODE_LABEL_PATTERN.match(line)
+        if match:
+            value = match.group(1).strip()
+            if value:
+                return value
+
+    return None
+
+
+def build_invoice_structured_data(
+    invoice_data: ExtractedInvoiceData | None, raw_text: str | None = None
+) -> dict | None:
     if invoice_data is None:
         return None
 
@@ -277,26 +304,44 @@ def build_invoice_structured_data(invoice_data: ExtractedInvoiceData | None) -> 
         except json.JSONDecodeError:
             raw_data = {}
 
-    subtotal = raw_data.get("subtotal") or invoice_data.subtotal
-    total = raw_data.get("total_amount") or invoice_data.total_amount
+    currency = invoice_data.currency
+    ship_mode = raw_data.get("ship_mode") or extract_ship_mode_fallback(raw_text)
+
+    subtotal = raw_data.get("subtotal")
+    if subtotal is None and invoice_data.subtotal is not None:
+        subtotal = float(invoice_data.subtotal)
+
+    total = raw_data.get("total_amount")
+    if total is None and invoice_data.total_amount is not None:
+        total = float(invoice_data.total_amount)
+
+    items = [
+        {
+            "name": item.get("name"),
+            "quantity": item.get("quantity"),
+            "rate": format_money(item.get("rate"), currency),
+            "amount": format_money(item.get("amount"), currency),
+        }
+        for item in (raw_data.get("items") or [])
+    ]
 
     return {
         "invoice_number": raw_data.get("invoice_number") or invoice_data.invoice_number,
-        "company": raw_data.get("company") or raw_data.get("supplier_name") or invoice_data.supplier_name,
+        "company": raw_data.get("supplier_name") or invoice_data.supplier_name,
         "bill_to": normalize_party(raw_data.get("bill_to")),
         "ship_to": normalize_party(raw_data.get("ship_to")),
         "date": str(invoice_data.invoice_date) if invoice_data.invoice_date else raw_data.get("invoice_date"),
-        "ship_mode": raw_data.get("ship_mode"),
-        "balance_due": raw_data.get("balance_due") or format_money(total, invoice_data.currency),
-        "items": raw_data.get("items") or [],
+        "ship_mode": ship_mode,
+        "balance_due": format_money(total, currency),
+        "items": items,
         "totals": {
-            "subtotal": raw_data.get("subtotal") if isinstance(raw_data.get("subtotal"), str) else format_money(subtotal, invoice_data.currency),
-            "discount": raw_data.get("discount"),
-            "shipping": raw_data.get("shipping"),
-            "total": raw_data.get("total") or format_money(total, invoice_data.currency),
+            "subtotal": format_money(subtotal, currency),
+            "discount": format_money(raw_data.get("discount"), currency),
+            "shipping": format_money(raw_data.get("shipping"), currency),
+            "total": format_money(total, currency),
         },
         "notes": raw_data.get("notes"),
-        "terms": raw_data.get("terms") or invoice_data.payment_terms,
+        "terms": raw_data.get("payment_terms") or invoice_data.payment_terms,
         "order_id": raw_data.get("order_id"),
     }
 

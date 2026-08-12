@@ -7,13 +7,11 @@ import { DocumentStats } from '@/types'
 import KpiCard from '@/components/ui/KpiCard'
 import DocumentsOverTimeChart from '@/components/ui/DocumentsOverTimeChart'
 import { useQuery } from '@tanstack/react-query'
-import { MessageSquare, FileStack, CheckCircle2, Loader2, AlertTriangle, Search } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, FileStack, Loader2, MessageSquare, Search, UploadCloud } from 'lucide-react'
 
 export default function DashboardPage() {
   const { token } = useAuth()
 
-  // Dashboard intentionally never fetches the full document list --
-  // that's the search page's job. This is a lightweight aggregate query.
   const { data: stats, isLoading, isError, error } = useQuery<DocumentStats, Error>({
     queryKey: ['document-stats', token],
     queryFn: () => api.getDocumentStats(token ?? undefined),
@@ -27,49 +25,67 @@ export default function DashboardPage() {
   })
 
   return (
-    <div className="container">
-      <h2 className="text-lg font-semibold mb-4">Overview</h2>
+    <div className="container page-stack">
+      <div className="page-header">
+        <div>
+          <div className="page-kicker">Workspace Overview</div>
+          <h1 className="page-title">Document intelligence dashboard</h1>
+          <p className="page-subtitle">
+            Track processing health, review extraction confidence, and jump into search or chat workflows.
+          </p>
+        </div>
+        <Link href="/upload" className="btn btn-primary">
+          <UploadCloud size={17} />
+          Upload document
+        </Link>
+      </div>
 
-      {isLoading && <div>Loading…</div>}
-      {isError && <div className="text-red-600">{(error as Error)?.message}</div>}
+      {isLoading && <StatePanel>Loading dashboard...</StatePanel>}
+      {isError && <StatePanel tone="danger">{(error as Error)?.message}</StatePanel>}
 
       {stats && (
         <>
-          <div className="grid gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-5">
-            <KpiCard label="Total Documents" value={stats.total} color="teal" icon={FileStack} />
-            <KpiCard label="Ready to Chat" value={stats.vectorized} color="cyan" icon={CheckCircle2} />
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <KpiCard label="Total documents" value={stats.total} color="blue" icon={FileStack} />
+            <KpiCard label="Ready to chat" value={stats.vectorized} color="green" icon={CheckCircle2} />
             <KpiCard label="Processing" value={stats.processing} color="amber" icon={Loader2} />
-            <KpiCard label="Failed" value={stats.failed} color="orange" icon={AlertTriangle} />
+            <KpiCard label="Failed" value={stats.failed} color="red" icon={AlertTriangle} />
             <KpiCard
-              label="Avg Confidence"
+              label="Avg confidence"
               value={stats.average_confidence == null ? '-' : `${Math.round(stats.average_confidence * 100)}%`}
-              color="cyan"
+              color="violet"
               icon={CheckCircle2}
             />
           </div>
 
-          <div className="mb-6">
-            <DocumentsOverTimeChart dailyCounts={stats.daily_counts} />
-          </div>
+          <DocumentsOverTimeChart dailyCounts={stats.daily_counts} />
         </>
       )}
 
-      <div className="mt-4 border-t pt-6 flex justify-center gap-4">
-        <Link
-          href="/search"
-          className="inline-flex items-center gap-2 px-5 py-3 border rounded-md font-medium hover:bg-slate-50"
-        >
-          <Search size={18} />
-          Browse documents
+      <div className="grid gap-4 md:grid-cols-2">
+        <Link href="/search" className="panel panel-pad group flex items-center justify-between gap-4 transition hover:border-blue-200 hover:bg-blue-50/30">
+          <div>
+            <div className="text-sm font-semibold text-slate-950">Browse and search documents</div>
+            <div className="mt-1 text-sm text-slate-500">Filter by date, file type, or search across extracted content.</div>
+          </div>
+          <Search size={20} className="shrink-0 text-blue-600 transition group-hover:scale-105" />
         </Link>
-        <Link
-          href="/chat"
-          className="inline-flex items-center gap-2 px-5 py-3 bg-accent text-white rounded-md font-medium"
-        >
-          <MessageSquare size={18} />
-          Chat with your documents
+        <Link href="/chat" className="panel panel-pad group flex items-center justify-between gap-4 transition hover:border-blue-200 hover:bg-blue-50/30">
+          <div>
+            <div className="text-sm font-semibold text-slate-950">Chat with your knowledge base</div>
+            <div className="mt-1 text-sm text-slate-500">Ask questions and trace answers back to source documents.</div>
+          </div>
+          <MessageSquare size={20} className="shrink-0 text-blue-600 transition group-hover:scale-105" />
         </Link>
       </div>
+    </div>
+  )
+}
+
+function StatePanel({ children, tone = 'neutral' }: { children: React.ReactNode; tone?: 'neutral' | 'danger' }) {
+  return (
+    <div className={`panel panel-pad text-sm ${tone === 'danger' ? 'text-red-700' : 'text-slate-500'}`}>
+      {children}
     </div>
   )
 }

@@ -5,7 +5,7 @@ import * as api from '@/lib/api'
 import { Document } from '@/types'
 import ChatPanel from '@/components/ui/ChatPanel'
 import { useQuery } from '@tanstack/react-query'
-import { Download, FileText } from 'lucide-react'
+import { Download, FileText, MessageSquare } from 'lucide-react'
 
 export default function ChatEntryPage() {
   const { token } = useAuth()
@@ -21,26 +21,34 @@ export default function ChatEntryPage() {
   const selectedDocument = chattable.find((document) => document.id === selectedDocumentId) ?? null
 
   return (
-    <div className="container">
-      <h2 className="text-lg font-semibold mb-4">Chat with your documents</h2>
+    <div className="container page-stack">
+      <div className="page-header">
+        <div>
+          <div className="page-kicker">Ask</div>
+          <h1 className="page-title">Chat with your documents</h1>
+          <p className="page-subtitle">
+            Ask questions across vectorized documents and inspect the exact source file beside the answer.
+          </p>
+        </div>
+        <div className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600">
+          {chattable.length} ready
+        </div>
+      </div>
 
-      {isLoading && <div>Loading...</div>}
+      {isLoading && <div className="panel panel-pad text-sm text-slate-500">Loading documents...</div>}
 
       {!isLoading && chattable.length === 0 && (
-        <div className="text-sm text-slate-500">
-          No documents are ready to chat with yet. Upload a document and wait for it to finish vectorizing.
+        <div className="panel panel-pad text-center">
+          <MessageSquare size={28} className="mx-auto text-slate-300" />
+          <div className="mt-3 text-sm font-semibold text-slate-950">No documents are ready yet</div>
+          <p className="mt-1 text-sm text-slate-500">Upload a document and wait for it to finish vectorizing.</p>
         </div>
       )}
 
       {chattable.length > 0 && (
-        <div className="grid grid-cols-12 gap-6">
-          <main className="col-span-7">
-            <ChatPanel onSourceSelect={setSelectedDocumentId} />
-          </main>
-
-          <aside className="col-span-5">
-            <DocumentPreview document={selectedDocument} />
-          </aside>
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+          <ChatPanel onSourceSelect={setSelectedDocumentId} />
+          <DocumentPreview document={selectedDocument} />
         </div>
       )}
     </div>
@@ -50,9 +58,15 @@ export default function ChatEntryPage() {
 function DocumentPreview({ document }: { document: Document | null }) {
   if (!document) {
     return (
-      <div className="rounded border p-4 text-sm text-slate-500">
-        Ask a question, then click a highlighted source document to preview it here.
-      </div>
+      <aside className="panel panel-pad flex min-h-[460px] items-center justify-center text-center">
+        <div>
+          <FileText size={34} className="mx-auto text-slate-300" />
+          <div className="mt-3 text-sm font-semibold text-slate-950">Source preview</div>
+          <p className="mt-1 max-w-xs text-sm leading-6 text-slate-500">
+            Ask a question, then choose a source document to preview it here.
+          </p>
+        </div>
+      </aside>
     )
   }
 
@@ -61,36 +75,28 @@ function DocumentPreview({ document }: { document: Document | null }) {
   const canPreview = ['.pdf', '.png', '.jpg', '.jpeg', '.txt'].includes(document.file_type)
 
   return (
-    <div className="rounded border p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
+    <aside className="panel overflow-hidden">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-200 p-4">
         <div className="min-w-0">
-          <h3 className="truncate text-sm font-medium">{document.original_filename}</h3>
-          <div className="text-xs text-slate-500">{document.file_type}</div>
+          <h3 className="truncate text-sm font-semibold text-slate-950">{document.original_filename}</h3>
+          <div className="mt-1 text-xs text-slate-500">{document.file_type.replace('.', '').toUpperCase()}</div>
         </div>
-        <a
-          href={documentUrl}
-          download={document.original_filename}
-          className="inline-flex shrink-0 items-center gap-2 rounded border px-3 py-2 text-sm font-medium hover:bg-slate-50"
-        >
-          <Download size={14} />
+        <a href={documentUrl} download={document.original_filename} className="btn btn-secondary shrink-0">
+          <Download size={15} />
           Download
         </a>
       </div>
 
       {canPreview ? (
-        <iframe
-          src={previewUrl}
-          title={`${document.original_filename} preview`}
-          className="h-[720px] w-full rounded border bg-slate-50"
-        />
+        <iframe src={previewUrl} title={`${document.original_filename} preview`} className="h-[640px] w-full bg-slate-50" />
       ) : (
-      <div className="flex aspect-[3/4] items-center justify-center rounded border bg-slate-50">
-        <div className="text-center">
-          <FileText size={48} className="mx-auto text-slate-300" />
-          <div className="mt-2 text-xs text-slate-500">Preview is not available for this file type.</div>
+        <div className="flex aspect-[3/4] items-center justify-center bg-slate-50">
+          <div className="text-center">
+            <FileText size={48} className="mx-auto text-slate-300" />
+            <div className="mt-2 text-xs text-slate-500">Preview is not available for this file type.</div>
+          </div>
         </div>
-      </div>
       )}
-    </div>
+    </aside>
   )
 }

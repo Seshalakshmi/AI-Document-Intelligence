@@ -9,6 +9,22 @@ from app.core.config import settings
 client = OpenAI(api_key=settings.openai_api_key)
 
 
+class InvoiceAddress(BaseModel):
+    name: str | None = Field(
+        default=None, description="Name of the person or company at this address"
+    )
+    city: str | None = Field(default=None)
+    state: str | None = Field(default=None)
+    country: str | None = Field(default=None)
+
+
+class InvoiceLineItem(BaseModel):
+    name: str | None = Field(default=None, description="Product or service description")
+    quantity: float | None = Field(default=None)
+    rate: float | None = Field(default=None, description="Unit price")
+    amount: float | None = Field(default=None, description="Line total (quantity x rate)")
+
+
 class InvoiceData(BaseModel):
     supplier_name: str | None = Field(
         default=None, description="Name of the company/vendor issuing the invoice"
@@ -22,8 +38,29 @@ class InvoiceData(BaseModel):
     currency: str | None = Field(
         default=None, description="3-letter currency code, e.g. USD, EUR, INR"
     )
+    bill_to: InvoiceAddress | None = Field(
+        default=None, description="Billing address / recipient of the invoice"
+    )
+    ship_to: InvoiceAddress | None = Field(
+        default=None, description="Shipping address, if different from billing"
+    )
+    ship_mode: str | None = Field(
+        default=None, description="Shipping method, e.g. 'Standard Class'"
+    )
+    order_id: str | None = Field(
+        default=None, description="Purchase order or sales order ID, if present"
+    )
+    items: list[InvoiceLineItem] = Field(
+        default_factory=list, description="Every line item listed on the invoice"
+    )
     subtotal: float | None = Field(
         default=None, description="Subtotal amount before tax"
+    )
+    discount: float | None = Field(
+        default=None, description="Discount amount, if any"
+    )
+    shipping: float | None = Field(
+        default=None, description="Shipping/freight charge, if any"
     )
     tax_amount: float | None = Field(
         default=None, description="Tax amount charged"
@@ -33,6 +70,9 @@ class InvoiceData(BaseModel):
     )
     payment_terms: str | None = Field(
         default=None, description="Payment terms, e.g. 'Net 30'"
+    )
+    notes: str | None = Field(
+        default=None, description="Any additional notes or remarks on the invoice"
     )
     confidence_score: float = Field(
         default=0.0, description="Model's confidence in the extraction, 0-1"
@@ -51,7 +91,9 @@ def extract_invoice_data(raw_text: str) -> dict:
                 "role": "system",
                 "content": (
                     "You are an expert invoice-parsing assistant. Extract the "
-                    "requested fields exactly as they appear on the invoice. "
+                    "requested fields exactly as they appear on the invoice, "
+                    "including the full bill-to and ship-to addresses and "
+                    "every line item (name, quantity, rate, amount). "
                     "If a field is not present or you are unsure, leave it null "
                     "rather than guessing. Set confidence_score to reflect how "
                     "certain you are about the extraction overall (0.0 to 1.0)."
