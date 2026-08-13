@@ -3,7 +3,7 @@ from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 
 
-def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 100) -> list[dict]:
+def chunk_text(text: str, chunk_size: int = 800, overlap: int = 160) -> list[dict]:
     chunks = []
     start = 0
     chunk_index = 0

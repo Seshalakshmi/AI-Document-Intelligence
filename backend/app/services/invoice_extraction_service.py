@@ -51,7 +51,14 @@ class InvoiceData(BaseModel):
         default=None, description="Purchase order or sales order ID, if present"
     )
     items: list[InvoiceLineItem] = Field(
-        default_factory=list, description="Every line item listed on the invoice"
+        default_factory=list,
+        description=(
+            "Every real line item on the invoice, from the 'Item Quantity "
+            "Rate Amount' table. Do not create an item from a trailing "
+            "metadata line (category, sub-category, product/SKU code) that "
+            "follows an item's amount -- that describes the item above it, "
+            "not a new one."
+        ),
     )
     subtotal: float | None = Field(
         default=None, description="Subtotal amount before tax"
@@ -91,12 +98,50 @@ def extract_invoice_data(raw_text: str) -> dict:
                 "role": "system",
                 "content": (
                     "You are an expert invoice-parsing assistant. Extract the "
-                    "requested fields exactly as they appear on the invoice, "
-                    "including the full bill-to and ship-to addresses and "
-                    "every line item (name, quantity, rate, amount). "
-                    "If a field is not present or you are unsure, leave it null "
-                    "rather than guessing. Set confidence_score to reflect how "
-                    "certain you are about the extraction overall (0.0 to 1.0)."
+                    "requested fields exactly as they appear on the invoice. "
+                    "The bill-to and ship-to addresses and the line items are "
+                    "almost always present on a real invoice even when the "
+                    "layout is messy (e.g. from PDF text extraction) -- read "
+                    "the whole document carefully and make your best good-faith "
+                    "extraction of them rather than defaulting to null. Only "
+                    "leave a field null if it is genuinely absent from the text, "
+                    "not merely because you are not 100% certain of the exact "
+                    "formatting.\n\n"
+                    "IMPORTANT: PDF text extraction frequently scrambles layout "
+                    "so that a field's VALUE appears earlier in the text than "
+                    "its LABEL, often with several values grouped together on "
+                    "one line followed by their matching labels grouped "
+                    "together on a later line, e.g.:\n"
+                    "  'Oct 13 2012  Standard Class  $3,922.53'\n"
+                    "  'Date :  Ship Mode :  Balance Due :'\n"
+                    "Here the first value belongs to the first label, the "
+                    "second value to the second label, and so on -- match "
+                    "them by their relative position and by what type of "
+                    "value each label expects (a date, a shipping method, a "
+                    "dollar amount), not by which text is physically closest. "
+                    "The same pattern applies to summary totals (subtotal, "
+                    "discount, shipping, total) and other label/value pairs -- "
+                    "note that not every invoice has every summary line (e.g. "
+                    "some have no discount), so match however many trailing "
+                    "values there are to however many trailing labels there "
+                    "are, in order; don't assume a fixed count. Use this "
+                    "positional and semantic matching whenever labels and "
+                    "values don't appear adjacent in the raw text.\n\n"
+                    "IMPORTANT: right after a line item's amount, you will "
+                    "often see a short line of extra product metadata (e.g. "
+                    "category, sub-category, and a product/SKU code, such as "
+                    "'Chairs, Furniture, FUR-CH-5378'). This describes the "
+                    "item immediately above it -- it is NOT a second line "
+                    "item, and it has no quantity/rate/amount of its own. "
+                    "Never invent an extra item from it, and never treat the "
+                    "summary values that follow it (subtotal, shipping, etc.) "
+                    "as if they belonged to it. Count the real items in the "
+                    "'Item Quantity Rate Amount' table carefully: there is "
+                    "normally exactly one amount per item, and any numbers "
+                    "left over afterward belong to the summary section, not "
+                    "to an item.\n\n"
+                    "Set confidence_score to reflect your overall certainty "
+                    "about the extraction (0.0 to 1.0)."
                 ),
             },
             {"role": "user", "content": raw_text},
