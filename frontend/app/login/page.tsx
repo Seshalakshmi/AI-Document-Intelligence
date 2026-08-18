@@ -1,6 +1,7 @@
 'use client'
 import React from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -8,17 +9,23 @@ import { useAuth } from '@/hooks/useAuth'
 import { FileSearch, LogIn } from 'lucide-react'
 
 const schema = z.object({ email: z.string().email(), password: z.string().min(1, 'Password is required') })
+type LoginFormValues = z.infer<typeof schema>
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Unknown error'
+}
 
 export default function LoginPage() {
   const { login } = useAuth()
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({ resolver: zodResolver(schema) })
+  const router = useRouter()
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormValues>({ resolver: zodResolver(schema) })
 
-  async function onSubmit(data: any) {
+  async function onSubmit(data: LoginFormValues) {
     try {
       await login(data.email, data.password)
-      window.location.href = '/dashboard'
-    } catch (err: any) {
-      alert(err.message)
+      router.push('/dashboard')
+    } catch (err: unknown) {
+      alert(getErrorMessage(err))
     }
   }
 

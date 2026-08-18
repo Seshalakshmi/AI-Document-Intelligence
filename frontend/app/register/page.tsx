@@ -1,6 +1,7 @@
 'use client'
 import React from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -12,17 +13,23 @@ const schema = z.object({
   email: z.string().email(),
   password: z.string().min(8, 'Password must be at least 8 characters'),
 })
+type RegisterFormValues = z.infer<typeof schema>
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Unknown error'
+}
 
 export default function RegisterPage() {
   const { register: regFn } = useAuth()
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({ resolver: zodResolver(schema) })
+  const router = useRouter()
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<RegisterFormValues>({ resolver: zodResolver(schema) })
 
-  async function onSubmit(data: any) {
+  async function onSubmit(data: RegisterFormValues) {
     try {
       await regFn(data.fullname, data.email, data.password)
-      window.location.href = '/dashboard'
-    } catch (err: any) {
-      alert(err.message)
+      router.push('/dashboard')
+    } catch (err: unknown) {
+      alert(getErrorMessage(err))
     }
   }
 

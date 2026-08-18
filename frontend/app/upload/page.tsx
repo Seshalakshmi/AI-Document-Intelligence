@@ -3,7 +3,11 @@ import React, { useState } from 'react'
 import FileDropzone from '@/components/ui/FileDropzone'
 import { useAuth } from '@/hooks/useAuth'
 import * as api from '@/lib/api'
-import { CheckCircle2, FileUp, ShieldCheck } from 'lucide-react'
+import { FileUp, ShieldCheck } from 'lucide-react'
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Unknown error'
+}
 
 export default function UploadPage() {
   const { user, token } = useAuth()
@@ -24,9 +28,9 @@ export default function UploadPage() {
       await api.uploadDocument(file, user.id, token ?? undefined, (p) => setProgress(Math.round(p * 100)))
       setTone('success')
       setMessage('Upload complete. Processing has started.')
-    } catch (err: any) {
+    } catch (err: unknown) {
       setTone('danger')
-      setMessage('Upload failed: ' + err.message)
+      setMessage('Upload failed: ' + getErrorMessage(err))
     } finally {
       setProgress(null)
     }

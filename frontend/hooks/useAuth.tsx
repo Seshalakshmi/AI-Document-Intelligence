@@ -1,3 +1,5 @@
+'use client'
+
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import * as api from '@/lib/api'
 import { User } from '@/types'
@@ -21,25 +23,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const t = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
-    if (!t) {
-      setLoading(false)
-      return
-    }
-    setToken(t)
-    ;(async () => {
-      try {
-        const u = await api.getCurrentUser(t)
-        setUser(u)
-      } catch {
-        // token invalid or expired
+    let cancelled = false
+    Promise.resolve()
+      .then(() => {
+        const storedToken = localStorage.getItem(STORAGE_KEY)
+
+        if (!storedToken) {
+          if (!cancelled) setLoading(false)
+          return null
+        }
+
+        if (!cancelled) setToken(storedToken)
+        return api.getCurrentUser(storedToken)
+      })
+      .then((currentUser) => {
+        if (!cancelled && currentUser) setUser(currentUser)
+      })
+      .catch(() => {
+        if (cancelled) return
         setToken(null)
         setUser(null)
         localStorage.removeItem(STORAGE_KEY)
-      } finally {
-        setLoading(false)
-      }
-    })()
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => {
@@ -62,6 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   function logout() {
     setUser(null)
     setToken(null)
+    setLoading(false)
     localStorage.removeItem(STORAGE_KEY)
   }
 

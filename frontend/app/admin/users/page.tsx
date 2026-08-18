@@ -5,6 +5,10 @@ import { User } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
 import { ShieldAlert, UsersRound } from 'lucide-react'
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Unknown error'
+}
+
 export default function AdminUsersPage() {
   const { token, user } = useAuth()
   const [users, setUsers] = useState<User[] | null>(null)
@@ -18,8 +22,8 @@ export default function AdminUsersPage() {
       try {
         const res = await api.listUsers(token ?? undefined)
         if (!cancelled) setUsers(res)
-      } catch (err: any) {
-        alert(err.message)
+      } catch (err: unknown) {
+        alert(getErrorMessage(err))
       } finally {
         setLoading(false)
       }
@@ -32,8 +36,8 @@ export default function AdminUsersPage() {
     try {
       const updated = await api.updateUserRole(u.id, role, token ?? undefined)
       setUsers((cur) => cur?.map((x) => (x.id === u.id ? updated : x)) ?? null)
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(getErrorMessage(err))
     }
   }
 
@@ -41,8 +45,8 @@ export default function AdminUsersPage() {
     try {
       const updated = await api.setUserActive(u.id, !u.is_active, token ?? undefined)
       setUsers((cur) => cur?.map((x) => (x.id === u.id ? updated : x)) ?? null)
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(getErrorMessage(err))
     }
   }
 

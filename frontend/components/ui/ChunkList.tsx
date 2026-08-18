@@ -19,14 +19,14 @@ export const ChunkList: React.FC<{ chunks: DocumentChunk[] }> = ({ chunks }) => 
 
   return (
     <div className="space-y-3">
-      {chunks.map((chunk, index) => (
-        <ChunkCard key={chunk.id} chunk={chunk} index={index} />
+      {chunks.map((chunk) => (
+        <ChunkCard key={chunk.id} chunk={chunk} />
       ))}
     </div>
   )
 }
 
-function ChunkCard({ chunk, index }: { chunk: DocumentChunk; index: number }) {
+function ChunkCard({ chunk }: { chunk: DocumentChunk }) {
   const [showRaw, setShowRaw] = useState(false)
   // The backend only ever attaches structured_data to an invoice chunk, so
   // trust that flag instead of re-deriving structure from raw text.

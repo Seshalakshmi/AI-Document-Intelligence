@@ -157,3 +157,21 @@ export interface GlobalChatAnswer {
   answer: string
   sources: GlobalChatSource[]
 }
+
+// Response shape of GET/POST /api/documents/{id}/comments
+// This is the human comment thread on a document -- separate from the
+// AI chat above. Everyone viewing the document sees the same list.
+export interface CommentAuthor {
+  id: number
+  fullname: string
+}
+
+export interface DocumentComment {
+  id: number
+  document_id: number
+  user_id: number
+  content: string
+  created_at: string
+  updated_at: string
+  author: CommentAuthor
+}

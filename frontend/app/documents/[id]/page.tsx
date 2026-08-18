@@ -1,12 +1,13 @@
 'use client'
 import React, { use, useState } from 'react'
+import Image from 'next/image'
 import { useAuth } from '@/hooks/useAuth'
 import * as api from '@/lib/api'
 import { Document, DocumentChunk, ExtractedInvoiceData } from '@/types'
 import StatusBadge from '@/components/ui/StatusBadge'
 import ChunkList from '@/components/ui/ChunkList'
 import ConfidenceBadge from '@/components/ui/ConfidenceBadge'
-import ChatPanel from '@/components/ui/ChatPanel'
+import CommentPanel from '../../../components/ui/CommentPanel'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, FileText, CheckCircle2 } from 'lucide-react'
 
@@ -21,27 +22,18 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
     queryKey: ['document', documentId, token],
     queryFn: () => api.getDocument(documentId, token ?? undefined),
     enabled: !!token,
-    refetchInterval: (query) => {
-      const data = query.state.data
-      if (!data) return 3000
-      return data.status === 'vectorized' || data.status === 'failed' ? false : 3000
-    },
   })
-
-  const isSettled = doc?.status === 'vectorized' || doc?.status === 'failed'
 
   const { data: chunks } = useQuery<DocumentChunk[], Error>({
     queryKey: ['document', documentId, 'chunks', token],
     queryFn: () => api.getDocumentChunks(documentId, token ?? undefined),
     enabled: !!doc,
-    refetchInterval: isSettled ? false : 5000,
   })
 
   const { data: extracted } = useQuery<ExtractedInvoiceData | null, Error>({
     queryKey: ['document', documentId, 'extracted', token],
     queryFn: () => api.getExtractedData(documentId, token ?? undefined),
     enabled: !!doc,
-    refetchInterval: isSettled ? false : 5000,
   })
 
   const vectorizeMutation = useMutation({
@@ -125,8 +117,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
         </div>
 
         <div className="mt-4">
-          <div className="mb-2 text-xs text-slate-500">Global chat searches across all vectorized documents.</div>
-          <ChatPanel />
+          <CommentPanel documentId={documentId} />
         </div>
       </div>
 
@@ -229,12 +220,15 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
 
         {/* Preview + download */}
         <div className="border rounded p-4">
-          <div className="aspect-[3/4] bg-slate-50 rounded flex items-center justify-center overflow-hidden">
+          <div className="relative aspect-[3/4] bg-slate-50 rounded flex items-center justify-center overflow-hidden">
             {showThumbnail ? (
-              <img
+              <Image
                 src={api.getDocumentThumbnailUrl(documentId)}
                 alt={`${doc.original_filename} preview`}
-                className="w-full h-full object-contain"
+                fill
+                sizes="320px"
+                unoptimized
+                className="object-contain"
                 onError={() => setThumbnailFailed(true)}
               />
             ) : (
