@@ -46,6 +46,6 @@ npm run lint
 
 ## Notes
 
-- The frontend expects the backend API to be available at `http://localhost:5002`.
+- The frontend expects the backend API to be available at NEXT_PUBLIC_API_URL=https://YOUR-BACKEND-URL.
 - If you need to change the backend address, update your API client configuration inside the frontend application.
 - The UI is organized into pages for login, registration, document upload, search, dashboard, and admin management.

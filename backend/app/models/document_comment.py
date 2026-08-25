@@ -9,13 +9,6 @@ def utc_now():
 
 
 class DocumentComment(Base):
-    """
-    A single comment on a document -- this is the human discussion thread
-    (e.g. "the total on page 2 wasn't picked up"), separate from the AI
-    chat/Q&A feature in chat_service.py. Everyone viewing the document sees
-    the same thread, each comment tagged with its author.
-    """
-
     __tablename__ = "document_comments"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)

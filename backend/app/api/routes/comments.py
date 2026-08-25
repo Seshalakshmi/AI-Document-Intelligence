@@ -7,15 +7,12 @@ from app.schemas.document_comment import DocumentCommentCreate, DocumentCommentR
 from app.services.comment_service import create_comment, get_comments_for_document
 from app.services.user_service import get_current_active_user
 
-# Same "/documents" prefix as documents.py / chat.py -- keeps every
-# document-scoped feature under /api/documents/{document_id}/...
+
 router = APIRouter(prefix="/documents", tags=["COMMENTS"])
 
 
 @router.get("/{document_id}/comments", response_model=list[DocumentCommentResponse])
 def list_comments(document_id: int, db: Session = Depends(get_db)):
-    """Public read -- anyone viewing the document sees the full thread,
-    same as the rest of the document detail page."""
     try:
         return get_comments_for_document(db, document_id)
     except ValueError as e:
