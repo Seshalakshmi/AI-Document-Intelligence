@@ -98,8 +98,8 @@ export const ChatPanel: React.FC<Props> = ({
   }
 
   return (
-    <div className="panel flex min-h-[460px] min-w-0 flex-col overflow-hidden">
-      <div className="border-b border-slate-200 px-4 py-3">
+    <div className="panel flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+      <div className="shrink-0 border-b border-slate-200 px-4 py-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
           <Bot
             size={17}
@@ -116,7 +116,7 @@ export const ChatPanel: React.FC<Props> = ({
         </div>
       </div>
 
-      <div className="min-w-0 flex-1 space-y-3 overflow-y-auto bg-slate-50/70 p-4">
+      <div className="min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto bg-slate-50/70 p-4">
         {messages.length === 0 && (
           <div className="rounded-lg border border-dashed border-slate-300 bg-white p-5 text-center text-sm text-slate-500">
             Ask a question to get an answer with source references.
@@ -250,7 +250,7 @@ export const ChatPanel: React.FC<Props> = ({
         )}
       </div>
 
-      <div className="border-t border-slate-200 bg-white p-3">
+      <div className="shrink-0 border-t border-slate-200 bg-white p-3">
         <div className="flex min-w-0 gap-2">
           <input
             value={input}

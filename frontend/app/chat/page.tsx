@@ -28,8 +28,8 @@ export default function ChatEntryPage() {
     chattable.find((document) => document.id === selectedDocumentId) ?? null
 
   return (
-    <div className="container page-stack">
-      <div className="page-header">
+    <div className="container flex h-[calc(100dvh-7rem)] min-h-0 flex-col gap-6 overflow-hidden md:h-[calc(100dvh-8rem)]">
+      <div className="page-header shrink-0">
         <div>
           <div className="page-kicker">Ask</div>
 
@@ -72,14 +72,14 @@ export default function ChatEntryPage() {
       )}
 
       {chattable.length > 0 && (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-          <div className="min-w-0">
+        <div className="grid min-h-0 flex-1 gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="min-h-0 min-w-0">
             <ChatPanel
               onSourceSelect={setSelectedDocumentId}
             />
           </div>
 
-          <div className="min-w-0">
+          <div className="min-h-0 min-w-0">
             <DocumentPreview
               document={selectedDocument}
             />
